@@ -48,6 +48,7 @@ Vagrantfile
 #-------------------------
 # Temporary Files
 #-------------------------
+/node_modules/
 writable/cache/*
 !writable/cache/index.html
 

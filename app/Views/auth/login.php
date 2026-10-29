@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#047857">
+    <title>Masuk - MedicFlow</title>
+    <link rel="stylesheet" href="<?= base_url('assets/css/app.css') ?>">
+</head>
+<body class="auth-page">
+    <main class="auth-shell">
+        <section class="auth-intro">
+            <a class="brand brand-light" href="<?= site_url('/') ?>">
+                <span class="brand-mark">+</span>
+                <span>MedicFlow</span>
+            </a>
+            <p class="eyebrow">LAYANAN KESEHATAN TERINTEGRASI</p>
+            <h1>Perawatan yang lebih teratur, dimulai di sini.</h1>
+            <p class="intro-copy">Kelola antrean, pemeriksaan, resep, dan informasi obat dari satu tempat.</p>
+            <div class="intro-note"><span>✓</span> Akses aman sesuai peran Anda</div>
+        </section>
+
+        <section class="auth-card">
+            <div class="card-heading">
+                <span class="eyebrow">SELAMAT DATANG</span>
+                <h2>Masuk ke MedicFlow</h2>
+                <p>Gunakan akun aktif yang telah terdaftar.</p>
+            </div>
+            <form id="loginForm">
+                <label class="field-label" for="username">Username</label>
+                <input class="field" id="username" name="username" autocomplete="username" required maxlength="50" placeholder="Masukkan username">
+                <label class="field-label" for="password">Password</label>
+                <input class="field" id="password" name="password" type="password" autocomplete="current-password" required placeholder="Masukkan password">
+                <p id="formMessage" class="form-message" role="status" aria-live="polite"></p>
+                <button class="button button-primary button-wide" id="submitButton" type="submit">Masuk <span>→</span></button>
+            </form>
+            <p class="auth-footer">Belum punya akun pasien? <a href="<?= site_url('register') ?>">Daftar sebagai pasien</a></p>
+            <p class="auth-footnote">Akun dokter, perawat, farmasi, dan admin dibuat oleh administrator.</p>
+        </section>
+    </main>
+    <script>
+        window.MEDICFLOW_API_BASE = <?= json_encode(rtrim(site_url('api'), '/'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        window.MEDICFLOW_LOGIN_URL = <?= json_encode(site_url('login'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        window.MEDICFLOW_APP_URL = <?= json_encode(site_url('app'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        window.MEDICFLOW_REGISTER_URL = <?= json_encode(site_url('register'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    </script>
+    <script src="<?= base_url('assets/js/app.js') ?>" defer></script>
+</body>
+</html>
