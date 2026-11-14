@@ -95,6 +95,22 @@ class MutasiStokController extends BaseApiController
             ]);
         }
 
+        try {
+            $this->recordOperationalActivity(
+                'Mutasi stok obat',
+                'obat',
+                (int) $drugId,
+                $type . ' ' . $mutationAmount . ' unit; stok ' . $before . ' menjadi ' . $after . '.'
+            );
+        } catch (\RuntimeException $exception) {
+            $db->transRollback();
+            log_message('error', $exception->getMessage());
+
+            return $this->response->setStatusCode(500)->setJSON([
+                'status' => false, 'message' => 'Mutasi stok gagal dicatat pada log aktivitas',
+            ]);
+        }
+
         $db->transCommit();
 
         return $this->response->setStatusCode(201)->setJSON([

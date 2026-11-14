@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#047857">
     <title>Masuk - MedicFlow</title>
-    <link rel="stylesheet" href="<?= base_url('assets/css/app.css') ?>">
+    <link rel="stylesheet" href="<?= esc(parse_url(base_url('assets/css/app.css'), PHP_URL_PATH)) ?>">
 </head>
 <body class="auth-page">
     <main class="auth-shell">
         <section class="auth-intro">
-            <a class="brand brand-light" href="<?= site_url('/') ?>">
+            <a class="brand brand-light" href="<?= esc(parse_url(site_url('/'), PHP_URL_PATH)) ?>">
                 <span class="brand-mark">+</span>
                 <span>MedicFlow</span>
             </a>
@@ -34,16 +34,18 @@
                 <p id="formMessage" class="form-message" role="status" aria-live="polite"></p>
                 <button class="button button-primary button-wide" id="submitButton" type="submit">Masuk <span>→</span></button>
             </form>
-            <p class="auth-footer">Belum punya akun pasien? <a href="<?= site_url('register') ?>">Daftar sebagai pasien</a></p>
+            <p class="auth-footer">Belum punya akun pasien? <a href="<?= esc(parse_url(site_url('register'), PHP_URL_PATH)) ?>">Daftar sebagai pasien</a></p>
             <p class="auth-footnote">Akun dokter, perawat, farmasi, dan admin dibuat oleh administrator.</p>
         </section>
     </main>
     <script>
-        window.MEDICFLOW_API_BASE = <?= json_encode(rtrim(site_url('api'), '/'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-        window.MEDICFLOW_LOGIN_URL = <?= json_encode(site_url('login'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-        window.MEDICFLOW_APP_URL = <?= json_encode(site_url('app'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-        window.MEDICFLOW_REGISTER_URL = <?= json_encode(site_url('register'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        window.MEDICFLOW_API_BASE = <?= json_encode(rtrim(parse_url(site_url('api'), PHP_URL_PATH), '/'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        window.MEDICFLOW_LOGIN_URL = <?= json_encode(parse_url(site_url('login'), PHP_URL_PATH), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        window.MEDICFLOW_APP_URL = <?= json_encode(parse_url(site_url('app'), PHP_URL_PATH), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        window.MEDICFLOW_REGISTER_URL = <?= json_encode(parse_url(site_url('register'), PHP_URL_PATH), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     </script>
-    <script src="<?= base_url('assets/js/app.js') ?>" defer></script>
+    <script src="<?= esc(parse_url(base_url('assets/js/core.js'), PHP_URL_PATH)) ?>" defer></script>
+    <script src="<?= esc(parse_url(base_url('assets/js/auth.js'), PHP_URL_PATH)) ?>" defer></script>
+    <script src="<?= esc(parse_url(base_url('assets/js/app.js'), PHP_URL_PATH)) ?>" defer></script>
 </body>
 </html>

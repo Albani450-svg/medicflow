@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#047857">
     <title>Dashboard - MedicFlow</title>
-    <link rel="stylesheet" href="<?= base_url('assets/css/app.css') ?>">
+    <link rel="stylesheet" href="<?= esc(parse_url(base_url('assets/css/app.css'), PHP_URL_PATH)) ?>">
 </head>
 <body class="app-page">
     <div class="app-shell">
         <aside class="sidebar">
-            <a class="brand" href="<?= site_url('app') ?>">
+            <a class="brand" href="<?= esc(parse_url(site_url('app'), PHP_URL_PATH)) ?>">
                 <span class="brand-mark">+</span>
                 <span>MedicFlow</span>
             </a>
@@ -42,12 +42,20 @@
         </main>
     </div>
     <script>
-        window.MEDICFLOW_API_BASE = <?= json_encode(rtrim(site_url('api'), '/'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-        window.MEDICFLOW_LOGIN_URL = <?= json_encode(site_url('login'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-        window.MEDICFLOW_APP_URL = <?= json_encode(site_url('app'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-        window.MEDICFLOW_REGISTER_URL = <?= json_encode(site_url('register'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        window.MEDICFLOW_API_BASE = <?= json_encode(rtrim(parse_url(site_url('api'), PHP_URL_PATH), '/'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        window.MEDICFLOW_LOGIN_URL = <?= json_encode(parse_url(site_url('login'), PHP_URL_PATH), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        window.MEDICFLOW_APP_URL = <?= json_encode(parse_url(site_url('app'), PHP_URL_PATH), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        window.MEDICFLOW_REGISTER_URL = <?= json_encode(parse_url(site_url('register'), PHP_URL_PATH), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
     </script>
-    <script src="<?= base_url('assets/vendor/html5-qrcode.min.js') ?>" defer></script>
-    <script src="<?= base_url('assets/js/app.js') ?>" defer></script>
+    <script src="<?= esc(parse_url(base_url('assets/vendor/html5-qrcode.min.js'), PHP_URL_PATH)) ?>" defer></script>
+    <script src="<?= esc(parse_url(base_url('assets/js/core.js'), PHP_URL_PATH)) ?>" defer></script>
+    <script src="<?= esc(parse_url(base_url('assets/js/views/common.js'), PHP_URL_PATH)) ?>" defer></script>
+    <script src="<?= esc(parse_url(base_url('assets/js/views/patient.js'), PHP_URL_PATH)) ?>" defer></script>
+    <script src="<?= esc(parse_url(base_url('assets/js/views/doctor.js'), PHP_URL_PATH)) ?>" defer></script>
+    <script src="<?= esc(parse_url(base_url('assets/js/views/nurse.js'), PHP_URL_PATH)) ?>" defer></script>
+    <script src="<?= esc(parse_url(base_url('assets/js/views/pharmacy.js'), PHP_URL_PATH)) ?>" defer></script>
+    <script src="<?= esc(parse_url(base_url('assets/js/views/admin.js'), PHP_URL_PATH)) ?>" defer></script>
+    <script src="<?= esc(parse_url(base_url('assets/js/dashboard.js'), PHP_URL_PATH)) ?>" defer></script>
+    <script src="<?= esc(parse_url(base_url('assets/js/app.js'), PHP_URL_PATH)) ?>" defer></script>
 </body>
 </html>

@@ -18,6 +18,10 @@ class ObatController extends BaseApiController
             'data'   => $this->model
                 ->select('id_obat, nama_obat, jenis_obat, satuan, cover_bpjs, stok_rs')
                 ->where('is_active', 1)
+                ->groupStart()
+                    ->where('tanggal_kedaluwarsa >=', date('Y-m-d'))
+                    ->orWhere('tanggal_kedaluwarsa', null)
+                ->groupEnd()
                 ->orderBy('nama_obat')
                 ->findAll(),
         ]);
@@ -30,6 +34,13 @@ class ObatController extends BaseApiController
         if (!is_array($input) || $input === []) {
             return $this->response->setStatusCode(400)->setJSON([
                 'status' => false, 'message' => 'Data obat tidak valid',
+            ]);
+        }
+
+        if (array_key_exists('tanggal_kedaluwarsa', $input)
+            && !$this->isValidExpiryDate($input['tanggal_kedaluwarsa'])) {
+            return $this->response->setStatusCode(400)->setJSON([
+                'status' => false, 'message' => 'Tanggal kedaluwarsa harus berupa tanggal yang valid atau kosong',
             ]);
         }
 
@@ -65,7 +76,7 @@ class ObatController extends BaseApiController
             }
             $input = array_intersect_key($input, array_flip([
                 'kode_kemenkes', 'nama_obat', 'jenis_obat', 'satuan',
-                'cover_bpjs', 'stok_minimum', 'harga', 'is_active',
+                'cover_bpjs', 'stok_minimum', 'tanggal_kedaluwarsa', 'harga', 'is_active',
             ]));
 
             if ($input === []) {
@@ -79,6 +90,13 @@ class ObatController extends BaseApiController
         if (!$this->model->find($id)) {
             return $this->response->setStatusCode(404)->setJSON([
                 'status' => false, 'message' => 'Obat tidak ditemukan',
+            ]);
+        }
+
+        if (array_key_exists('tanggal_kedaluwarsa', $input)
+            && !$this->isValidExpiryDate($input['tanggal_kedaluwarsa'])) {
+            return $this->response->setStatusCode(400)->setJSON([
+                'status' => false, 'message' => 'Tanggal kedaluwarsa harus berupa tanggal yang valid atau kosong',
             ]);
         }
 
@@ -102,5 +120,20 @@ class ObatController extends BaseApiController
         return $this->response->setStatusCode(201)->setJSON([
             'status' => true, 'id' => $this->model->getInsertID(),
         ]);
+    }
+
+    private function isValidExpiryDate($date): bool
+    {
+        if ($date === null || $date === '') {
+            return true;
+        }
+
+        if (!is_string($date)) {
+            return false;
+        }
+
+        $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+
+        return $parsed !== false && $parsed->format('Y-m-d') === $date;
     }
 }

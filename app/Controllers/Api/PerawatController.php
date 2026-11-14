@@ -13,6 +13,7 @@ class PerawatController extends BaseApiController
             ->select(
                 'pendaftaran_poli.id_pendaftaran, pendaftaran_poli.tanggal_kunjungan, ' .
                 'pendaftaran_poli.nomor_antrean, pendaftaran_poli.status_antrean, ' .
+                'pendaftaran_poli.waktu_check_in, pendaftaran_poli.estimasi_jam_masuk, ' .
                 'pendaftaran_poli.catatan_pasien, pasien.nama_lengkap AS nama_pasien, ' .
                 'jadwal_dokter.hari, jadwal_dokter.jam_mulai, dokter.nama_dokter, ' .
                 'triase_perawat.keluhan_awal, triase_perawat.tekanan_darah, ' .
@@ -28,6 +29,8 @@ class PerawatController extends BaseApiController
             ->whereIn('pendaftaran_poli.status_antrean', ['Menunggu', 'Siap Diperiksa'])
             ->where('pendaftaran_poli.tanggal_kunjungan >=', date('Y-m-d'))
             ->orderBy('pendaftaran_poli.tanggal_kunjungan', 'ASC')
+            ->orderBy('pendaftaran_poli.waktu_check_in IS NULL', 'ASC', false)
+            ->orderBy('pendaftaran_poli.estimasi_jam_masuk', 'ASC')
             ->orderBy('pendaftaran_poli.nomor_antrean', 'ASC')
             ->get()
             ->getResultArray();
@@ -114,6 +117,22 @@ class PerawatController extends BaseApiController
 
             return $this->response->setStatusCode(400)->setJSON([
                 'status' => false, 'message' => 'Status antrean gagal diperbarui',
+            ]);
+        }
+
+        try {
+            $this->recordOperationalActivity(
+                'Perubahan status antrean',
+                'pendaftaran_poli',
+                $appointmentId,
+                'Perawat menyelesaikan pemeriksaan awal; status antrean berubah menjadi Siap Diperiksa.'
+            );
+        } catch (\RuntimeException $exception) {
+            $db->transRollback();
+            log_message('error', $exception->getMessage());
+
+            return $this->response->setStatusCode(500)->setJSON([
+                'status' => false, 'message' => 'Pemeriksaan awal gagal dicatat pada log aktivitas',
             ]);
         }
 

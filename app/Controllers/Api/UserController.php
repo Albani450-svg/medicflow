@@ -75,14 +75,30 @@ class UserController extends BaseApiController
             'is_active'     => 1,
         ];
 
+        $db = db_connect();
+        $db->transBegin();
+
         if (!$this->model->insert($data)) {
+            $db->transRollback();
             return $this->response->setStatusCode(400)->setJSON([
                 'status' => false, 'errors' => $this->model->errors(),
             ]);
         }
 
+        $userId = (int) $this->model->getInsertID();
+        try {
+            $this->recordOperationalActivity('Admin membuat akun', 'users', $userId, 'Admin membuat akun ' . $data['role'] . '.');
+        } catch (\RuntimeException $exception) {
+            $db->transRollback();
+            log_message('error', $exception->getMessage());
+            return $this->response->setStatusCode(500)->setJSON([
+                'status' => false, 'message' => 'Akun gagal disimpan pada log aktivitas',
+            ]);
+        }
+        $db->transCommit();
+
         return $this->response->setStatusCode(201)->setJSON([
-            'status' => true, 'id_user' => $this->model->getInsertID(),
+            'status' => true, 'id_user' => $userId,
         ]);
     }
 
@@ -127,11 +143,32 @@ class UserController extends BaseApiController
             ]);
         }
 
+        $actor = $this->currentUser();
+        $db = db_connect();
+        $db->transBegin();
+
         if (!$this->model->update($id, $data)) {
+            $db->transRollback();
             return $this->response->setStatusCode(400)->setJSON([
                 'status' => false, 'errors' => $this->model->errors(),
             ]);
         }
+
+        try {
+            $this->recordOperationalActivity(
+                'Admin memperbarui akun',
+                'users',
+                (int) $id,
+                'Admin ' . ($actor['username'] ?? 'admin') . ' memperbarui data akun.'
+            );
+        } catch (\RuntimeException $exception) {
+            $db->transRollback();
+            log_message('error', $exception->getMessage());
+            return $this->response->setStatusCode(500)->setJSON([
+                'status' => false, 'message' => 'Perubahan akun gagal disimpan pada log aktivitas',
+            ]);
+        }
+        $db->transCommit();
 
         return $this->response->setJSON(['status' => true, 'message' => 'User diperbarui']);
     }

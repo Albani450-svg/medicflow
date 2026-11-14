@@ -8,7 +8,7 @@ class Home extends BaseController
 {
     public function index(): RedirectResponse
     {
-        return redirect()->to(site_url('login'));
+        return redirect()->to('/login');
     }
 
     public function login(): string

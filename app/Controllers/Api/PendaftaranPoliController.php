@@ -61,9 +61,13 @@ class PendaftaranPoliController extends BaseApiController
 
         $db = db_connect();
         $db->transBegin();
-
+        $db->query('SELECT id_pasien FROM pasien WHERE id_pasien = ? FOR UPDATE', [$patientId]);
         $schedule = $db->query(
-            'SELECT id_jadwal, kuota_maksimal, is_active FROM jadwal_dokter WHERE id_jadwal = ? FOR UPDATE',
+            'SELECT jadwal_dokter.id_jadwal, jadwal_dokter.id_dokter, jadwal_dokter.hari, ' .
+            'jadwal_dokter.jam_mulai, jadwal_dokter.jam_selesai, jadwal_dokter.kuota_maksimal, ' .
+            'jadwal_dokter.is_active, dokter.rata_waktu_periksa_menit ' .
+            'FROM jadwal_dokter JOIN dokter ON dokter.id_dokter = jadwal_dokter.id_dokter ' .
+            'WHERE jadwal_dokter.id_jadwal = ? FOR UPDATE',
             [$scheduleId]
         )->getRowArray();
 
@@ -76,18 +80,35 @@ class PendaftaranPoliController extends BaseApiController
             ]);
         }
 
-        $scheduleDay = $db->query(
-            'SELECT hari FROM jadwal_dokter WHERE id_jadwal = ?',
-            [$scheduleId]
-        )->getRowArray()['hari'];
         $days = [1 => 'Senin', 2 => 'Selasa', 3 => 'Rabu', 4 => 'Kamis', 5 => 'Jumat', 6 => 'Sabtu', 7 => 'Minggu'];
 
-        if ($days[(int) $parsedDate->format('N')] !== $scheduleDay) {
+        if ($days[(int) $parsedDate->format('N')] !== $schedule['hari']) {
             $db->transRollback();
 
             return $this->response->setStatusCode(400)->setJSON([
                 'status'  => false,
                 'message' => 'Tanggal kunjungan tidak sesuai dengan hari praktik dokter',
+            ]);
+        }
+
+        $overlap = $db->table('pendaftaran_poli')
+            ->select('pendaftaran_poli.id_pendaftaran')
+            ->join('jadwal_dokter', 'jadwal_dokter.id_jadwal = pendaftaran_poli.id_jadwal')
+            ->where('pendaftaran_poli.id_pasien', $patientId)
+            ->where('pendaftaran_poli.tanggal_kunjungan', $date)
+            ->where('pendaftaran_poli.status_antrean !=', 'Batal')
+            ->where('jadwal_dokter.jam_mulai <', $schedule['jam_selesai'])
+            ->where('jadwal_dokter.jam_selesai >', $schedule['jam_mulai'])
+            ->limit(1)
+            ->get()
+            ->getRowArray();
+
+        if ($overlap) {
+            $db->transRollback();
+
+            return $this->response->setStatusCode(409)->setJSON([
+                'status' => false,
+                'message' => 'Waktu jadwal ini bertabrakan dengan kunjungan Anda yang lain',
             ]);
         }
 
@@ -135,6 +156,10 @@ class PendaftaranPoliController extends BaseApiController
             'tanggal_kunjungan' => $date,
             'nomor_antrean'     => ((int) ($maxQueue['nomor_terakhir'] ?? 0)) + 1,
         ];
+        $estimatedTime = new DateTimeImmutable($date . ' ' . $schedule['jam_mulai']);
+        $data['estimasi_jam_masuk'] = $estimatedTime
+            ->modify('+' . (($data['nomor_antrean'] - 1) * max(1, (int) ($schedule['rata_waktu_periksa_menit'] ?? 15))) . ' minutes')
+            ->format('Y-m-d H:i:s');
 
         if ($note !== null) {
             $data['catatan_pasien'] = $note;
@@ -150,6 +175,30 @@ class PendaftaranPoliController extends BaseApiController
         }
 
         $id = $this->model->getInsertID();
+
+        try {
+            $this->recordOperationalActivity(
+                'Pendaftaran antrean',
+                'pendaftaran_poli',
+                (int) $id,
+                'Pasien mendaftar antrean #' . $data['nomor_antrean'] . ' untuk ' . $date . '.'
+            );
+        } catch (\RuntimeException $exception) {
+            $db->transRollback();
+            log_message('error', $exception->getMessage());
+
+            return $this->response->setStatusCode(500)->setJSON([
+                'status' => false, 'message' => 'Pendaftaran gagal dicatat pada log aktivitas',
+            ]);
+        }
+
+        if (!$db->transStatus()) {
+            $db->transRollback();
+            return $this->response->setStatusCode(500)->setJSON([
+                'status' => false, 'message' => 'Pendaftaran antrean gagal disimpan',
+            ]);
+        }
+
         $db->transCommit();
 
         return $this->response->setStatusCode(201)->setJSON([
@@ -187,15 +236,113 @@ class PendaftaranPoliController extends BaseApiController
             ->where('jadwal_dokter.id_dokter', $doctorId)
             ->whereIn('pendaftaran_poli.status_antrean', [
                 'Siap Diperiksa', 'Dipanggil', 'Masuk Ruangan', 'Menunggu',
-                'Selesai Pemeriksaan', 'Batal',
             ])
-            ->orderBy("FIELD(pendaftaran_poli.status_antrean, 'Dipanggil', 'Masuk Ruangan', 'Siap Diperiksa', 'Menunggu', 'Selesai Pemeriksaan', 'Batal')", '', false)
+            ->where('pendaftaran_poli.tanggal_kunjungan >=', date('Y-m-d'))
+            ->orderBy("FIELD(pendaftaran_poli.status_antrean, 'Dipanggil', 'Masuk Ruangan', 'Siap Diperiksa', 'Menunggu')", '', false)
             ->orderBy('pendaftaran_poli.tanggal_kunjungan', 'ASC')
             ->orderBy('pendaftaran_poli.nomor_antrean', 'ASC')
             ->get()
             ->getResultArray();
 
         return $this->response->setJSON(['status' => true, 'data' => $data]);
+    }
+
+    public function doctorHistory()
+    {
+        $doctorId = $this->linkedProfileId(new DokterModel(), 'id_dokter');
+
+        if ($doctorId === null) {
+            return $this->profileNotFound();
+        }
+
+        $data = db_connect()->table('pendaftaran_poli')
+            ->select('pendaftaran_poli.*, pasien.nama_lengkap AS nama_pasien, jadwal_dokter.hari, jadwal_dokter.jam_mulai, jadwal_dokter.jam_selesai')
+            ->join('pasien', 'pasien.id_pasien = pendaftaran_poli.id_pasien')
+            ->join('jadwal_dokter', 'jadwal_dokter.id_jadwal = pendaftaran_poli.id_jadwal')
+            ->where('jadwal_dokter.id_dokter', $doctorId)
+            ->groupStart()
+                ->whereIn('pendaftaran_poli.status_antrean', ['Selesai Pemeriksaan', 'Batal'])
+                ->orWhere('pendaftaran_poli.tanggal_kunjungan <', date('Y-m-d'))
+            ->groupEnd()
+            ->orderBy('pendaftaran_poli.tanggal_kunjungan', 'DESC')
+            ->orderBy('pendaftaran_poli.nomor_antrean', 'DESC')
+            ->get()
+            ->getResultArray();
+
+        return $this->response->setJSON(['status' => true, 'data' => $data]);
+    }
+
+    public function checkIn(int $id)
+    {
+        $patientId = $this->linkedProfileId(new PasienModel(), 'id_pasien');
+
+        if ($patientId === null) {
+            return $this->profileNotFound();
+        }
+
+        $db = db_connect();
+        $db->transBegin();
+        $appointment = $db->query(
+            'SELECT id_pendaftaran, id_pasien, tanggal_kunjungan, status_antrean, waktu_check_in ' .
+            'FROM pendaftaran_poli WHERE id_pendaftaran = ? FOR UPDATE',
+            [$id]
+        )->getRowArray();
+
+        if (!$appointment || (int) $appointment['id_pasien'] !== $patientId) {
+            $db->transRollback();
+
+            return $this->response->setStatusCode(404)->setJSON([
+                'status' => false, 'message' => 'Pendaftaran tidak ditemukan',
+            ]);
+        }
+
+        if ($appointment['tanggal_kunjungan'] !== date('Y-m-d') || $appointment['status_antrean'] !== 'Menunggu') {
+            $db->transRollback();
+
+            return $this->response->setStatusCode(409)->setJSON([
+                'status' => false,
+                'message' => 'Check-in hanya tersedia pada tanggal kunjungan selama status masih Menunggu',
+            ]);
+        }
+
+        if ($appointment['waktu_check_in'] !== null) {
+            $db->transRollback();
+
+            return $this->response->setStatusCode(409)->setJSON([
+                'status' => false, 'message' => 'Pendaftaran ini sudah check-in',
+            ]);
+        }
+
+        if (!$this->model->update($id, ['waktu_check_in' => date('Y-m-d H:i:s')])) {
+            $db->transRollback();
+
+            return $this->response->setStatusCode(400)->setJSON([
+                'status' => false, 'errors' => $this->model->errors(),
+            ]);
+        }
+
+        try {
+            $this->recordOperationalActivity(
+                'Check-in pasien',
+                'pendaftaran_poli',
+                $id,
+                'Pasien melakukan check-in kunjungan.'
+            );
+        } catch (\RuntimeException $exception) {
+            $db->transRollback();
+            log_message('error', $exception->getMessage());
+
+            return $this->response->setStatusCode(500)->setJSON([
+                'status' => false, 'message' => 'Check-in gagal dicatat pada log aktivitas',
+            ]);
+        }
+
+        $db->transCommit();
+
+        return $this->response->setJSON([
+            'status' => true,
+            'message' => 'Check-in berhasil. Silakan menunggu panggilan perawat atau dokter.',
+        ]);
     }
 
     public function updateQueueStatus(int $id)
@@ -269,10 +416,6 @@ class PendaftaranPoliController extends BaseApiController
 
         $updates = ['status_antrean' => $status];
 
-        if ($status === 'Dipanggil') {
-            $updates['waktu_check_in'] = date('Y-m-d H:i:s');
-        }
-
         if (!$this->model->update($id, $updates)) {
             $db->transRollback();
 
@@ -281,7 +424,7 @@ class PendaftaranPoliController extends BaseApiController
             ]);
         }
 
-        if ($status === 'Dipanggil') {
+        if (in_array($status, ['Dipanggil', 'Masuk Ruangan'], true)) {
             $patient = (new PasienModel())->find($lockedAppointment['id_pasien']);
             $doctor = (new DokterModel())->where('id_user', $this->currentUser()['id_user'])->first();
 
@@ -298,12 +441,16 @@ class PendaftaranPoliController extends BaseApiController
             if (!$notification->insert([
                 'id_pasien'        => $patient['id_pasien'],
                 'id_pendaftaran'   => $lockedAppointment['id_pendaftaran'],
-                'jenis_notifikasi' => 'Pasien Dipanggil',
+                'jenis_notifikasi' => $status === 'Dipanggil' ? 'Pasien Dipanggil' : 'Pasien Masuk Ruangan',
                 'channel'          => 'PWA',
                 'nomor_tujuan'     => $patient['no_telepon'],
-                'pesan'            => 'Dokter ' . $doctor['nama_dokter'] .
-                    ' memanggil Anda untuk pemeriksaan. Silakan menuju ruang praktik. Nomor antrean #' .
-                    $lockedAppointment['nomor_antrean'] . '.',
+                'pesan'            => $status === 'Dipanggil'
+                    ? 'Dokter ' . $doctor['nama_dokter'] .
+                        ' memanggil Anda untuk pemeriksaan. Silakan menuju ruang praktik. Nomor antrean #' .
+                        $lockedAppointment['nomor_antrean'] . '.'
+                    : 'Dokter ' . $doctor['nama_dokter'] .
+                        ' mengonfirmasi Anda masuk ruang pemeriksaan. Nomor antrean #' .
+                        $lockedAppointment['nomor_antrean'] . '.',
                 'status'           => 'Pending',
             ])) {
                 $db->transRollback();
@@ -312,6 +459,22 @@ class PendaftaranPoliController extends BaseApiController
                     'status' => false, 'errors' => $notification->errors(),
                 ]);
             }
+        }
+
+        try {
+            $this->recordOperationalActivity(
+                'Perubahan status antrean',
+                'pendaftaran_poli',
+                $id,
+                'Status antrean diubah menjadi ' . $status . '.'
+            );
+        } catch (\RuntimeException $exception) {
+            $db->transRollback();
+            log_message('error', $exception->getMessage());
+
+            return $this->response->setStatusCode(500)->setJSON([
+                'status' => false, 'message' => 'Perubahan antrean gagal dicatat pada log aktivitas',
+            ]);
         }
 
         if (!$db->transStatus()) {
@@ -326,8 +489,8 @@ class PendaftaranPoliController extends BaseApiController
 
         return $this->response->setJSON([
             'status' => true,
-            'message' => $status === 'Dipanggil'
-                ? 'Pasien dipanggil dan notifikasi web berhasil dicatat'
+            'message' => in_array($status, ['Dipanggil', 'Masuk Ruangan'], true)
+                ? 'Status diperbarui dan notifikasi pasien berhasil dicatat'
                 : 'Status antrean diperbarui',
         ]);
     }

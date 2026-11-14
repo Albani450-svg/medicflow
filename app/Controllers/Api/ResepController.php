@@ -187,7 +187,6 @@ class ResepController extends BaseApiController
     public function selectDispensing(int $id)
     {
         $patientId = $this->linkedProfileId(new PasienModel(), 'id_pasien');
-        $recipe = $this->model->find($id);
         $input = $this->request->getJSON(true);
         $choice = is_array($input) ? ($input['pilihan_penebusan'] ?? null) : null;
 
@@ -197,24 +196,36 @@ class ResepController extends BaseApiController
             ]);
         }
 
+        if (!in_array($choice, ['Apotek RS', 'Apotek Luar'], true)) {
+            return $this->response->setStatusCode(409)->setJSON([
+                'status' => false, 'message' => 'Pilihan penebusan tidak valid atau resep sudah diproses',
+            ]);
+        }
+
+        $db = db_connect();
+        $db->transBegin();
+        $recipe = $db->query(
+            'SELECT id_resep, id_pendaftaran, status_resep FROM resep WHERE id_resep = ? FOR UPDATE',
+            [$id]
+        )->getRowArray();
+
         if (!$recipe) {
+            $db->transRollback();
             return $this->response->setStatusCode(404)->setJSON([
                 'status' => false, 'message' => 'Resep tidak ditemukan',
             ]);
         }
 
         $appointment = (new PendaftaranPoliModel())->find($recipe['id_pendaftaran']);
-
         if (!$appointment || (int) $appointment['id_pasien'] !== $patientId) {
+            $db->transRollback();
             return $this->response->setStatusCode(404)->setJSON([
                 'status' => false, 'message' => 'Resep tidak ditemukan',
             ]);
         }
 
-        if (
-            $recipe['status_resep'] !== 'Menunggu Pilihan'
-            || !in_array($choice, ['Apotek RS', 'Apotek Luar'], true)
-        ) {
+        if ($recipe['status_resep'] !== 'Menunggu Pilihan') {
+            $db->transRollback();
             return $this->response->setStatusCode(409)->setJSON([
                 'status' => false, 'message' => 'Pilihan penebusan tidak valid atau resep sudah diproses',
             ]);
@@ -227,10 +238,35 @@ class ResepController extends BaseApiController
         }
 
         if (!$this->model->update($id, $updates)) {
+            $db->transRollback();
             return $this->response->setStatusCode(400)->setJSON([
                 'status' => false, 'errors' => $this->model->errors(),
             ]);
         }
+
+        try {
+            $this->recordOperationalActivity(
+                'Pilihan penebusan resep',
+                'resep',
+                $id,
+                'Pasien memilih ' . $choice . '.'
+            );
+        } catch (\RuntimeException $exception) {
+            $db->transRollback();
+            log_message('error', $exception->getMessage());
+            return $this->response->setStatusCode(500)->setJSON([
+                'status' => false, 'message' => 'Pilihan resep gagal dicatat pada log aktivitas',
+            ]);
+        }
+
+        if (!$db->transStatus()) {
+            $db->transRollback();
+            return $this->response->setStatusCode(500)->setJSON([
+                'status' => false, 'message' => 'Pilihan penebusan resep gagal disimpan',
+            ]);
+        }
+
+        $db->transCommit();
 
         return $this->response->setJSON([
             'status' => true, 'message' => 'Pilihan penebusan resep berhasil disimpan',
@@ -359,6 +395,28 @@ class ResepController extends BaseApiController
             }
         }
 
+        try {
+            $this->recordOperationalActivity(
+                'Pembuatan resep dokter',
+                'resep',
+                $recipeId,
+                'Dokter menerbitkan resep untuk pendaftaran #' . $appointmentId . '.'
+            );
+        } catch (\RuntimeException $exception) {
+            $db->transRollback();
+            log_message('error', $exception->getMessage());
+            return $this->response->setStatusCode(500)->setJSON([
+                'status' => false, 'message' => 'Pembuatan resep gagal dicatat pada log aktivitas',
+            ]);
+        }
+
+        if (!$db->transStatus()) {
+            $db->transRollback();
+            return $this->response->setStatusCode(500)->setJSON([
+                'status' => false, 'message' => 'Resep gagal disimpan',
+            ]);
+        }
+
         $db->transCommit();
 
         return $this->response->setStatusCode(201)->setJSON([
@@ -438,7 +496,7 @@ class ResepController extends BaseApiController
 
             foreach ($details as $detail) {
                 $drug = $db->query(
-                    'SELECT id_obat, stok_rs FROM obat WHERE id_obat = ? FOR UPDATE',
+                    'SELECT id_obat, stok_rs, tanggal_kedaluwarsa FROM obat WHERE id_obat = ? FOR UPDATE',
                     [$detail['id_obat']]
                 )->getRowArray();
 
@@ -446,6 +504,13 @@ class ResepController extends BaseApiController
                     $db->transRollback();
                     return $this->response->setStatusCode(409)->setJSON([
                         'status' => false, 'message' => 'Stok obat pada resep tidak mencukupi',
+                    ]);
+                }
+
+                if ($drug['tanggal_kedaluwarsa'] !== null && $drug['tanggal_kedaluwarsa'] < date('Y-m-d')) {
+                    $db->transRollback();
+                    return $this->response->setStatusCode(409)->setJSON([
+                        'status' => false, 'message' => 'Obat pada resep telah kedaluwarsa dan tidak dapat disiapkan',
                     ]);
                 }
 
@@ -473,6 +538,22 @@ class ResepController extends BaseApiController
                         'status' => false, 'errors' => $mutationModel->errors(),
                     ]);
                 }
+
+                try {
+                    $this->recordOperationalActivity(
+                        'Pemakaian stok untuk resep',
+                        'obat',
+                        (int) $drug['id_obat'],
+                        'Resep #' . $id . ': stok berkurang ' . (int) $detail['jumlah'] . ' unit.'
+                    );
+                } catch (\RuntimeException $exception) {
+                    $db->transRollback();
+                    log_message('error', $exception->getMessage());
+                    return $this->response->setStatusCode(500)->setJSON([
+                        'status' => false, 'message' => 'Pemakaian stok gagal dicatat pada log aktivitas',
+                    ]);
+                }
+
             }
         }
 
@@ -518,6 +599,21 @@ class ResepController extends BaseApiController
                         'status' => false, 'errors' => $mutationModel->errors(),
                     ]);
                 }
+
+                try {
+                    $this->recordOperationalActivity(
+                        'Pengembalian stok resep dibatalkan',
+                        'obat',
+                        (int) $drug['id_obat'],
+                        'Resep #' . $id . ': stok bertambah ' . (int) $detail['jumlah'] . ' unit.'
+                    );
+                } catch (\RuntimeException $exception) {
+                    $db->transRollback();
+                    log_message('error', $exception->getMessage());
+                    return $this->response->setStatusCode(500)->setJSON([
+                        'status' => false, 'message' => 'Pengembalian stok gagal dicatat pada log aktivitas',
+                    ]);
+                }
             }
         }
 
@@ -557,6 +653,21 @@ class ResepController extends BaseApiController
                     'status' => false, 'errors' => $notificationModel->errors(),
                 ]);
             }
+        }
+
+        try {
+            $this->recordOperationalActivity(
+                'Perubahan status resep',
+                'resep',
+                $id,
+                'Status resep diubah dari ' . $currentStatus . ' menjadi ' . $status . '.'
+            );
+        } catch (\RuntimeException $exception) {
+            $db->transRollback();
+            log_message('error', $exception->getMessage());
+            return $this->response->setStatusCode(500)->setJSON([
+                'status' => false, 'message' => 'Perubahan resep gagal dicatat pada log aktivitas',
+            ]);
         }
 
         $db->transCommit();

@@ -17,6 +17,7 @@ class ObatModel extends Model
         'cover_bpjs',
         'stok_rs',
         'stok_minimum',
+        'tanggal_kedaluwarsa',
         'harga',
         'is_active'
     ];

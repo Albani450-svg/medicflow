@@ -140,6 +140,28 @@ class PengambilanObatController extends BaseApiController
             ]);
         }
 
+        try {
+            $this->recordOperationalActivity(
+                'Penyerahan obat',
+                'resep',
+                $recipeId,
+                'Pengambilan resep berhasil diverifikasi melalui QR oleh ' . strtolower($takenBy) . '.'
+            );
+        } catch (\RuntimeException $exception) {
+            $db->transRollback();
+            log_message('error', $exception->getMessage());
+            return $this->response->setStatusCode(500)->setJSON([
+                'status' => false, 'message' => 'Pengambilan obat gagal dicatat pada log aktivitas',
+            ]);
+        }
+
+        if (!$db->transStatus()) {
+            $db->transRollback();
+            return $this->response->setStatusCode(500)->setJSON([
+                'status' => false, 'message' => 'Pengambilan obat gagal disimpan',
+            ]);
+        }
+
         $db->transCommit();
 
         return $this->response->setStatusCode(201)->setJSON([

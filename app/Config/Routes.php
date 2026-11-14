@@ -20,6 +20,8 @@ $routes->group('api/pasien', ['filter' => 'jwt:pasien'], static function ($route
     $routes->put('me', 'Api\PasienController::updateMe');
     $routes->get('pendaftaran', 'Api\PendaftaranPoliController::mine');
     $routes->post('pendaftaran', 'Api\PendaftaranPoliController::register');
+    $routes->post('pendaftaran/(:num)/check-in', 'Api\PendaftaranPoliController::checkIn/$1');
+    $routes->get('riwayat-klinis', 'Api\PasienController::clinicalHistoryMine');
     $routes->get('pemeriksaan', 'Api\PemeriksaanController::mine');
     $routes->get('resep', 'Api\ResepController::mine');
     $routes->get('resep/(:num)', 'Api\ResepController::showMine/$1');
@@ -30,7 +32,10 @@ $routes->group('api/pasien', ['filter' => 'jwt:pasien'], static function ($route
 
 $routes->group('api/dokter', ['filter' => 'jwt:dokter'], static function ($routes) {
     $routes->get('antrian', 'Api\PendaftaranPoliController::doctorQueue');
+    $routes->get('antrian/riwayat', 'Api\PendaftaranPoliController::doctorHistory');
     $routes->put('antrian/(:num)', 'Api\PendaftaranPoliController::updateQueueStatus/$1');
+    $routes->get('kunjungan/(:num)/riwayat-klinis', 'Api\PasienController::clinicalHistoryForDoctor/$1');
+    $routes->put('kunjungan/(:num)/riwayat-klinis', 'Api\PasienController::updateClinicalHistory/$1');
     $routes->get('obat', 'Api\ObatController::activeCatalog');
     $routes->get('jadwal', 'Api\JadwalDokterController::mine');
     $routes->post('jadwal', 'Api\JadwalDokterController::createForDoctor');
@@ -61,6 +66,8 @@ $routes->group('api/farmasi', ['filter' => 'jwt:farmasi'], static function ($rou
 });
 
 $routes->group('api/admin', ['filter' => 'jwt:admin'], static function ($routes) {
+    $routes->post('dokter/registrasi', 'Api\DokterController::registerDoctor');
+
     $resources = [
         'pasien'          => 'PasienController',
         'dokter'          => 'DokterController',

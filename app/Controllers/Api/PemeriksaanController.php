@@ -236,6 +236,31 @@ class PemeriksaanController extends BaseApiController
             }
         }
 
+        try {
+            $this->recordOperationalActivity(
+                'Perubahan status antrean',
+                'pendaftaran_poli',
+                (int) $appointmentId,
+                'Dokter menyelesaikan pemeriksaan; status antrean berubah menjadi Selesai Pemeriksaan.'
+            );
+
+            if ($prescriptionId !== null) {
+                $this->recordOperationalActivity(
+                    'Pembuatan resep dokter',
+                    'resep',
+                    $prescriptionId,
+                    'Dokter menerbitkan resep untuk pendaftaran #' . $appointmentId . '.'
+                );
+            }
+        } catch (\RuntimeException $exception) {
+            $db->transRollback();
+            log_message('error', $exception->getMessage());
+
+            return $this->response->setStatusCode(500)->setJSON([
+                'status' => false, 'message' => 'Pemeriksaan gagal dicatat pada log aktivitas',
+            ]);
+        }
+
         if (!$db->transStatus()) {
             $db->transRollback();
 
