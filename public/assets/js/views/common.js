@@ -39,6 +39,7 @@ function renderNav() {
             stopCamera();
             state.page = button.dataset.page;
             state.data.pendingPickup = null;
+            if (typeof closeNavigation === "function") closeNavigation();
             renderPage();
         });
     });

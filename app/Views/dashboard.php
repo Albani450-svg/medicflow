@@ -2,14 +2,15 @@
 <html lang="id">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#047857">
     <title>Dashboard - MedicFlow</title>
     <link rel="stylesheet" href="<?= esc(parse_url(base_url('assets/css/app.css'), PHP_URL_PATH)) ?>">
 </head>
 <body class="app-page">
     <div class="app-shell">
-        <aside class="sidebar">
+        <button class="sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="Tutup menu" tabindex="-1"></button>
+        <aside class="sidebar" id="appSidebar">
             <a class="brand" href="<?= esc(parse_url(site_url('app'), PHP_URL_PATH)) ?>">
                 <span class="brand-mark">+</span>
                 <span>MedicFlow</span>
@@ -22,16 +23,24 @@
                     <strong id="userName">Memuat akun...</strong>
                     <span id="userRole">MedicFlow</span>
                 </div>
-                <button class="icon-button" id="logoutButton" type="button" aria-label="Keluar">↪</button>
+                <button class="button button-secondary button-small sidebar-logout" id="logoutButton" type="button">Keluar</button>
             </div>
         </aside>
         <main class="main-area">
             <header class="topbar">
-                <div>
-                    <p class="eyebrow">MEDICFLOW / <span id="topRole">DASHBOARD</span></p>
-                    <h1 id="pageTitle">Dashboard</h1>
+                <div class="topbar-leading">
+                    <button class="menu-toggle" id="menuToggle" type="button" aria-label="Buka menu" aria-controls="appSidebar" aria-expanded="false">
+                        <span class="menu-toggle-bars" aria-hidden="true"></span>
+                    </button>
+                    <div>
+                        <p class="eyebrow">MEDICFLOW / <span id="topRole">DASHBOARD</span></p>
+                        <h1 id="pageTitle">Dashboard</h1>
+                    </div>
                 </div>
-                <div class="topbar-date" id="todayLabel"></div>
+                <div class="topbar-tools">
+                    <div class="topbar-date" id="todayLabel"></div>
+                    <button class="button button-secondary topbar-logout" id="logoutButtonTop" type="button">Keluar</button>
+                </div>
             </header>
             <div class="content-area">
                 <div id="toast" class="toast" role="status" aria-live="polite"></div>

@@ -511,6 +511,27 @@ function bindPageActions() {
     }
 }
 
+function setNavigationOpen(open) {
+    document.body.classList.toggle("nav-open", open);
+    const toggle = document.getElementById("menuToggle");
+    if (!toggle) return;
+    toggle.setAttribute("aria-expanded", open ? "true" : "false");
+    toggle.setAttribute("aria-label", open ? "Tutup menu" : "Buka menu");
+}
+
+function closeNavigation() {
+    setNavigationOpen(false);
+}
+
+function bindLogout(button) {
+    if (!button) return;
+    button.addEventListener("click", function () {
+        sessionStorage.removeItem(tokenKey);
+        sessionStorage.removeItem(userKey);
+        window.location.assign(window.MEDICFLOW_LOGIN_URL);
+    });
+}
+
 async function initializeDashboard() {
     if (!document.body.classList.contains("app-page")) return;
     const token = sessionStorage.getItem(tokenKey);
@@ -527,10 +548,21 @@ async function initializeDashboard() {
         document.getElementById("userRole").textContent = roleLabels[state.role];
         document.getElementById("userAvatar").textContent = (state.user.username || roleLabels[state.role]).slice(0, 1).toUpperCase();
         document.getElementById("todayLabel").textContent = new Intl.DateTimeFormat("id-ID", { dateStyle: "full" }).format(new Date());
-        document.getElementById("logoutButton").addEventListener("click", function () {
-            sessionStorage.removeItem(tokenKey);
-            sessionStorage.removeItem(userKey);
-            window.location.assign(window.MEDICFLOW_LOGIN_URL);
+        bindLogout(document.getElementById("logoutButton"));
+        bindLogout(document.getElementById("logoutButtonTop"));
+        const menuToggle = document.getElementById("menuToggle");
+        const sidebarBackdrop = document.getElementById("sidebarBackdrop");
+        if (menuToggle) {
+            menuToggle.addEventListener("click", function () {
+                setNavigationOpen(!document.body.classList.contains("nav-open"));
+            });
+        }
+        if (sidebarBackdrop) sidebarBackdrop.addEventListener("click", closeNavigation);
+        document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") closeNavigation();
+        });
+        window.addEventListener("resize", function () {
+            if (window.innerWidth > 900) closeNavigation();
         });
         if (state.role === "pasien" && "serviceWorker" in navigator && window.isSecureContext) {
             navigator.serviceWorker.register("/service-worker.js")
