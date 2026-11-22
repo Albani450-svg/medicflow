@@ -164,16 +164,21 @@ locally under `public/assets/vendor/` and does not send QR data to a third party
 In a development or testing environment, run
 `php spark db:seed MedicFlowDemoSeeder` to add demo accounts, a doctor profile,
 a future Monday schedule, and a patient appointment. The seeder is idempotent
-and refuses to run in production. All demo accounts use the password
-`MedicFlowDemo#2026`:
+and refuses to run in production. Every demo account uses the same password:
 
-| Role | Username |
-| --- | --- |
-| Admin | `demo_admin` |
-| Dokter | `demo_dokter` |
-| Perawat | `demo_perawat` |
-| Farmasi | `demo_farmasi` |
-| Pasien | `demo_pasien` |
+| Role | Username | Password |
+| --- | --- | --- |
+| Admin | `demo_admin` | `Demo#2026` |
+| Dokter umum | `demo_dokter` | `Demo#2026` |
+| Dokter gigi | `demo_dokter_gigi` | `Demo#2026` |
+| Dokter anak | `demo_dokter_anak` | `Demo#2026` |
+| Dokter kandungan | `demo_dokter_kandungan` | `Demo#2026` |
+| Dokter mata | `demo_dokter_mata` | `Demo#2026` |
+| Dokter THT | `demo_dokter_tht` | `Demo#2026` |
+| Dokter jantung | `demo_dokter_jantung` | `Demo#2026` |
+| Perawat | `demo_perawat` | `Demo#2026` |
+| Farmasi | `demo_farmasi` | `Demo#2026` |
+| Pasien | `demo_pasien` | `Demo#2026` |
 
 Use the admin dashboard's **Akun staf** page to review admin, doctor, nurse,
 and pharmacy accounts. The demo patient appointment starts in **Menunggu** so

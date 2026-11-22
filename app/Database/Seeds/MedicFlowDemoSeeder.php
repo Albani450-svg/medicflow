@@ -9,7 +9,7 @@ use RuntimeException;
 
 class MedicFlowDemoSeeder extends Seeder
 {
-    private const DEMO_PASSWORD = 'MedicFlowDemo#2026';
+    private const DEMO_PASSWORD = 'Demo#2026';
 
     public function run(): void
     {
@@ -118,7 +118,7 @@ class MedicFlowDemoSeeder extends Seeder
             }
 
             $dentalClinic = $this->ensureClinic('Poli Gigi', 'Poliklinik gigi untuk akun demo lokal.', $now);
-            $dentalUserId = $this->ensureUser('demo_dokter2', 'dokter', 'Dr. Gigi Demo', '081200000206', $now);
+            $dentalUserId = $this->ensureUser('demo_dokter_gigi', 'dokter', 'Dr. Gigi Demo', '081200000206', $now);
             $dentalDoctorId = $this->ensureDoctor(
                 $dentalUserId,
                 (int) $dentalClinic['id_poli'],
@@ -224,7 +224,7 @@ class MedicFlowDemoSeeder extends Seeder
             CLI::write('Akun demo (password semua akun: ' . self::DEMO_PASSWORD . '):');
             CLI::write('  admin    : demo_admin');
             CLI::write('  dokter   : demo_dokter');
-            CLI::write('  dokter 2 : demo_dokter2');
+            CLI::write('  dokter gigi : demo_dokter_gigi');
             CLI::write('  perawat  : demo_perawat');
             CLI::write('  farmasi  : demo_farmasi');
             CLI::write('  pasien   : demo_pasien');
@@ -348,6 +348,11 @@ class MedicFlowDemoSeeder extends Seeder
             if ($user['role'] !== $role) {
                 throw new RuntimeException('Username demo sudah digunakan oleh role yang berbeda: ' . $username);
             }
+
+            $this->db->table('users')->where('id_user', $user['id_user'])->update([
+                'password_hash' => password_hash(self::DEMO_PASSWORD, PASSWORD_DEFAULT),
+                'updated_at'    => $now,
+            ]);
 
             return (int) $user['id_user'];
         }
