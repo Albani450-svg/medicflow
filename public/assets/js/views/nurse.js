@@ -23,8 +23,10 @@ function nurseQueueCards(items) {
         const summary = completed
             ? '<div class="text-muted"><strong>Keluhan awal:</strong> ' + escapeHtml(item.keluhan_awal) +
                 '<br><strong>Tanda vital:</strong> TD ' + escapeHtml(item.tekanan_darah) +
-                ', suhu ' + escapeHtml(item.suhu_tubuh) + ' °C, berat ' + escapeHtml(item.berat_badan) +
+                ', suhu ' + escapeHtml(item.suhu_tubuh) + ' °C, respirasi ' + escapeHtml(item.laju_respirasi) +
+                ' x/menit, berat ' + escapeHtml(item.berat_badan) +
                 ' kg, tinggi ' + escapeHtml(item.tinggi_badan) + ' cm' +
+                '<br><strong>Alergi obat:</strong> ' + escapeHtml(item.alergi_obat || "Belum dicatat") +
                 (item.catatan_perawat ? '<br><strong>Catatan perawat:</strong> ' + escapeHtml(item.catatan_perawat) : "") +
                 '<br><strong>Dicatat oleh:</strong> ' + escapeHtml(item.nama_perawat || "Perawat") +
                 ' • ' + formatDateTime(item.waktu_triase) + '</div>'
@@ -35,6 +37,8 @@ function nurseQueueCards(items) {
                 '<div class="field-wrap"><label class="field-label">Suhu (°C)</label><input class="field" name="suhu_tubuh" type="number" min="25" max="45" step="0.1" required></div>' +
                 '<div class="field-wrap"><label class="field-label">Berat (kg)</label><input class="field" name="berat_badan" type="number" min="0.1" max="500" step="0.1" required></div>' +
                 '<div class="field-wrap"><label class="field-label">Tinggi (cm)</label><input class="field" name="tinggi_badan" type="number" min="30" max="250" step="0.1" required></div>' +
+                '<div class="field-wrap"><label class="field-label">Laju respirasi (x/menit)</label><input class="field" name="laju_respirasi" type="number" min="1" max="80" step="1" required placeholder="18"></div>' +
+                '<div class="field-wrap field-full"><label class="field-label">Alergi obat</label><textarea class="field textarea" name="alergi_obat" rows="2" required maxlength="2000" placeholder="Tidak ada, atau sebutkan obat">' + escapeHtml(item.alergi_obat_tercatat || "") + '</textarea></div>' +
                 '<div class="field-wrap field-full"><label class="field-label">Catatan perawat (opsional)</label><textarea class="field textarea" name="catatan_perawat" rows="2" maxlength="2000"></textarea></div>' +
                 '<div class="field-full form-actions"><button class="button button-primary" type="submit">Simpan pemeriksaan awal</button></div></form>';
         return '<article class="info-card"><h4>' + escapeHtml(item.nama_pasien) + ' <span style="float:right">' + statusBadge(item.status_antrean) + '</span></h4>' +

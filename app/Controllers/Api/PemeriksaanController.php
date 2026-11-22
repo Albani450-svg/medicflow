@@ -10,6 +10,7 @@ use App\Models\JadwalDokterModel;
 use App\Models\ResepModel;
 use App\Models\DetailResepModel;
 use App\Models\ObatModel;
+use App\Models\RiwayatKlinisPasienModel;
 
 class PemeriksaanController extends BaseApiController
 {
@@ -99,15 +100,61 @@ class PemeriksaanController extends BaseApiController
             ]);
         }
 
-        if (!db_connect()->table('triase_perawat')->where('id_pendaftaran', $appointmentId)->countAllResults()) {
+        $triage = db_connect()->table('triase_perawat')->where('id_pendaftaran', $appointmentId)->get()->getRowArray();
+
+        if (!$triage) {
             return $this->response->setStatusCode(409)->setJSON([
                 'status' => false, 'message' => 'Pemeriksaan awal perawat harus diselesaikan sebelum pemeriksaan dokter',
             ]);
         }
 
+        if (!is_array($input)) {
+            $input = [];
+        }
+
+        if (!is_string($input['keluhan'] ?? null) || trim($input['keluhan']) === '') {
+            $input['keluhan'] = (string) $triage['keluhan_awal'];
+        }
+
+        foreach ([
+            'tekanan_darah' => 'tekanan_darah',
+            'suhu_tubuh' => 'suhu_tubuh',
+            'berat_badan' => 'berat_badan',
+            'tinggi_badan' => 'tinggi_badan',
+        ] as $field => $source) {
+            if (!isset($input[$field]) || $input[$field] === '' || $input[$field] === null) {
+                $input[$field] = $triage[$source];
+            }
+        }
+
+        if (!array_key_exists('laju_respirasi', $input) || $input['laju_respirasi'] === '' || $input['laju_respirasi'] === null) {
+            $input['laju_respirasi'] = $triage['laju_respirasi'];
+        }
+        $respirationRate = $this->respirationRate($input['laju_respirasi']);
+        if ($input['laju_respirasi'] !== null && $input['laju_respirasi'] !== '' && $respirationRate === null) {
+            return $this->response->setStatusCode(400)->setJSON([
+                'status' => false, 'message' => 'Laju respirasi harus bilangan bulat 1 sampai 80 kali per menit',
+            ]);
+        }
+        $input['laju_respirasi'] = $respirationRate;
+
+        if (!isset($input['alergi_obat']) || !is_string($input['alergi_obat']) || trim($input['alergi_obat']) === '') {
+            if (isset($input['alergi_obat']) && $input['alergi_obat'] !== null && !is_string($input['alergi_obat'])) {
+                return $this->response->setStatusCode(400)->setJSON([
+                    'status' => false, 'message' => 'Alergi obat harus berupa teks',
+                ]);
+            }
+            $input['alergi_obat'] = $triage['alergi_obat'];
+        } elseif (strlen(trim($input['alergi_obat'])) > 2000) {
+            return $this->response->setStatusCode(400)->setJSON([
+                'status' => false, 'message' => 'Alergi obat maksimal 2000 karakter',
+            ]);
+        } else {
+            $input['alergi_obat'] = trim($input['alergi_obat']);
+        }
+
         if (
-            !is_array($input)
-            || !is_string($input['keluhan'] ?? null) || trim($input['keluhan']) === ''
+            !is_string($input['keluhan'] ?? null) || trim($input['keluhan']) === ''
             || !is_string($input['diagnosis'] ?? null) || trim($input['diagnosis']) === ''
             || !is_string($input['tindakan'] ?? null) || trim($input['tindakan']) === ''
         ) {
@@ -150,6 +197,7 @@ class PemeriksaanController extends BaseApiController
 
         $data = array_intersect_key($input, array_flip([
             'keluhan', 'tekanan_darah', 'suhu_tubuh', 'berat_badan', 'tinggi_badan',
+            'laju_respirasi', 'alergi_obat',
             'diagnosis', 'tindakan', 'catatan_dokter', 'waktu_mulai', 'waktu_selesai',
         ]));
         $data['id_pendaftaran'] = (int) $appointmentId;
@@ -236,6 +284,20 @@ class PemeriksaanController extends BaseApiController
             }
         }
 
+        if (is_string($data['alergi_obat'] ?? null) && trim($data['alergi_obat']) !== '') {
+            if (!(new RiwayatKlinisPasienModel())->saveDrugAllergy(
+                (int) $appointment['id_pasien'],
+                (string) $data['alergi_obat'],
+                (int) $this->currentUser()['id_user']
+            )) {
+                $db->transRollback();
+
+                return $this->response->setStatusCode(400)->setJSON([
+                    'status' => false, 'message' => 'Alergi obat gagal disimpan pada riwayat pasien',
+                ]);
+            }
+        }
+
         try {
             $this->recordOperationalActivity(
                 'Perubahan status antrean',
@@ -307,6 +369,7 @@ class PemeriksaanController extends BaseApiController
         $input = $this->request->getJSON(true);
         $data = is_array($input) ? array_intersect_key($input, array_flip([
             'keluhan', 'tekanan_darah', 'suhu_tubuh', 'berat_badan', 'tinggi_badan',
+            'laju_respirasi', 'alergi_obat',
             'diagnosis', 'tindakan', 'catatan_dokter', 'waktu_selesai',
         ])) : [];
 
@@ -316,12 +379,76 @@ class PemeriksaanController extends BaseApiController
             ]);
         }
 
+        if (array_key_exists('laju_respirasi', $data)) {
+            $respirationRate = $this->respirationRate($data['laju_respirasi']);
+            if ($respirationRate === null) {
+                return $this->response->setStatusCode(400)->setJSON([
+                    'status' => false, 'message' => 'Laju respirasi harus bilangan bulat 1 sampai 80 kali per menit',
+                ]);
+            }
+            $data['laju_respirasi'] = $respirationRate;
+        }
+
+        if (array_key_exists('alergi_obat', $data)) {
+            if (!is_string($data['alergi_obat']) || strlen(trim($data['alergi_obat'])) > 2000) {
+                return $this->response->setStatusCode(400)->setJSON([
+                    'status' => false, 'message' => 'Alergi obat maksimal 2000 karakter',
+                ]);
+            }
+            $data['alergi_obat'] = trim($data['alergi_obat']) === '' ? null : trim($data['alergi_obat']);
+        }
+
+        $db = db_connect();
+        $db->transBegin();
+
         if (!$this->model->update($id, $data)) {
+            $db->transRollback();
+
             return $this->response->setStatusCode(400)->setJSON([
                 'status' => false, 'errors' => $this->model->errors(),
             ]);
         }
 
+        if (is_string($data['alergi_obat'] ?? null) && $data['alergi_obat'] !== '') {
+            $appointment = (new PendaftaranPoliModel())->find($record['id_pendaftaran']);
+            if ($appointment && !(new RiwayatKlinisPasienModel())->saveDrugAllergy(
+                (int) $appointment['id_pasien'],
+                $data['alergi_obat'],
+                (int) $this->currentUser()['id_user']
+            )) {
+                $db->transRollback();
+
+                return $this->response->setStatusCode(400)->setJSON([
+                    'status' => false, 'message' => 'Alergi obat gagal disimpan pada riwayat pasien',
+                ]);
+            }
+        }
+
+        if (!$db->transStatus()) {
+            $db->transRollback();
+
+            return $this->response->setStatusCode(500)->setJSON([
+                'status' => false, 'message' => 'Pemeriksaan gagal diperbarui',
+            ]);
+        }
+
+        $db->transCommit();
+
         return $this->response->setJSON(['status' => true, 'message' => 'Pemeriksaan diperbarui']);
+    }
+
+    private function respirationRate($value): ?int
+    {
+        if (is_int($value)) {
+            $rate = $value;
+        } elseif (is_string($value) && preg_match('/\A[1-9]\d*\z/', $value)) {
+            $rate = (int) $value;
+        } elseif (is_float($value) && floor($value) === $value) {
+            $rate = (int) $value;
+        } else {
+            return null;
+        }
+
+        return $rate >= 1 && $rate <= 80 ? $rate : null;
     }
 }

@@ -68,5 +68,13 @@ function renderAdmin() {
             '<div class="split-grid">' + panel("Form data", form) + panel("Panduan field", '<p class="text-muted">Field berbeda untuk setiap resource. Gunakan ID relasi yang tersedia di database. Data akun memerlukan username, password, nama_lengkap, dan role saat dibuat. Password hanya dikirim melalui API dan tidak ditampilkan dalam daftar.</p>') + '</div>' +
             panel("Data " + (adminResources.find(function (resource) { return resource[0] === selected; }) || ["", selected])[1], table(headers.concat(["Aksi"]), rows, "Belum ada data pada resource ini."));
     }
+    if (state.page === "reports") {
+        return '<div class="page-intro"><div><h2>Laporan operasional</h2><p>Unduh laporan kunjungan atau pengeluaran obat dalam PDF dan Excel.</p></div></div>' +
+            panel("Unduh laporan", reportDownloadForm([
+                { id: "kunjungan", label: "Laporan kunjungan" },
+                { id: "pengeluaran-obat", label: "Laporan pengeluaran obat" }
+            ]), "Pilih rentang tanggal, lalu unduh PDF atau Excel") +
+            panel("Isi laporan", '<p>Laporan kunjungan memuat antrean pada rentang tanggal, termasuk poliklinik, dokter, status, dan diagnosis bila pemeriksaan sudah dicatat.</p><p>Laporan pengeluaran obat memuat mutasi stok berjenis Keluar, baik dari peracikan resep maupun pengeluaran manual. Lembar rekapitulasi menjumlahkan obat yang keluar.</p>');
+    }
     return '<div class="empty-state">Halaman tidak ditemukan.</div>';
 }

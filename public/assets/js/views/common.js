@@ -22,6 +22,22 @@ function statusBadge(status) {
     return '<span class="' + color + '">' + escapeHtml(value) + '</span>';
 }
 
+function reportDownloadForm(options) {
+    const today = new Date();
+    const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    const startValue = [today.getFullYear(), String(today.getMonth() + 1).padStart(2, "0"), "01"].join("-");
+    const endValue = [end.getFullYear(), String(end.getMonth() + 1).padStart(2, "0"), String(end.getDate()).padStart(2, "0")].join("-");
+    const picker = options.length > 1
+        ? filterField("Jenis laporan", '<select class="field" id="reportKind" name="jenis">' + options.map(function (option) {
+            return '<option value="' + escapeHtml(option.id) + '">' + escapeHtml(option.label) + '</option>';
+        }).join("") + '</select>')
+        : '<input id="reportKind" name="jenis" type="hidden" value="' + escapeHtml(options[0].id) + '">';
+    return '<form id="reportDownloadForm" class="inline-form">' + picker +
+        filterField("Dari tanggal", '<input class="field" id="reportFrom" name="dari" type="date" required value="' + startValue + '">') +
+        filterField("Sampai tanggal", '<input class="field" id="reportTo" name="sampai" type="date" required value="' + endValue + '">') +
+        '<div class="report-actions"><button class="button button-primary" type="button" data-download-report="pdf">Unduh PDF</button><button class="button button-secondary" type="button" data-download-report="xls">Unduh Excel</button></div></form>';
+}
+
 function statCards(items) {
     return '<div class="stat-grid">' + items.map(function (item) {
         return '<article class="stat-card"><span>' + escapeHtml(item[0]) + '</span><strong>' + escapeHtml(item[1]) + '</strong></article>';

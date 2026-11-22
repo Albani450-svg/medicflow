@@ -208,7 +208,39 @@ function bindCheckInButtons(root) {
     });
 }
 
+function bindReportDownloads() {
+    const form = document.getElementById("reportDownloadForm");
+    if (!form) return;
+    form.addEventListener("submit", function (event) {
+        event.preventDefault();
+        const pdfButton = form.querySelector('[data-download-report="pdf"]');
+        if (pdfButton) pdfButton.click();
+    });
+    form.querySelectorAll("[data-download-report]").forEach(function (button) {
+        button.addEventListener("click", async function () {
+            const from = document.getElementById("reportFrom").value;
+            const to = document.getElementById("reportTo").value;
+            const kind = document.getElementById("reportKind").value;
+            if (!from || !to || from > to) {
+                showToast("Rentang tanggal tidak valid.", true);
+                return;
+            }
+            const prefix = state.role === "farmasi" ? "farmasi" : "admin";
+            button.disabled = true;
+            try {
+                await downloadFile(prefix + "/laporan/" + encodeURIComponent(kind) + "?dari=" + encodeURIComponent(from) + "&sampai=" + encodeURIComponent(to) + "&format=" + encodeURIComponent(button.dataset.downloadReport), "laporan." + button.dataset.downloadReport);
+                showToast("Laporan berhasil diunduh.");
+            } catch (error) {
+                showToast(error.message, true);
+            } finally {
+                button.disabled = false;
+            }
+        });
+    });
+}
+
 function bindPageActions() {
+    bindReportDownloads();
     if (state.role === "pasien") {
         document.querySelectorAll("[data-enable-device-notifications]").forEach(function (button) {
             button.addEventListener("click", async function () {
@@ -295,13 +327,17 @@ function bindPageActions() {
                 return String(entry.id_pendaftaran) === String(examinationPatient && examinationPatient.value);
             });
             if (!appointment) throw new Error("Pilih pasien yang akan diperiksa terlebih dahulu.");
+            const drugAllergy = form.elements.namedItem("alergi_obat").value;
             await request("dokter/kunjungan/" + appointment.id_pendaftaran + "/riwayat-klinis", {
                 method: "PUT",
                 body: {
                     alergi: form.elements.namedItem("alergi").value,
+                    alergi_obat: drugAllergy,
                     obat_aktif: form.elements.namedItem("obat_aktif").value
                 }
             });
+            const examinationAllergy = document.querySelector('#examinationForm [name="alergi_obat"]');
+            if (examinationAllergy) examinationAllergy.value = drugAllergy;
             setBusy(form.querySelector('button[type="submit"]'), false);
             showToast("Riwayat klinis pasien berhasil diperbarui.", false);
         });
@@ -340,7 +376,7 @@ function bindPageActions() {
         handleForm("examinationForm", async function (form) {
             const data = formObject(form);
             data.id_pendaftaran = Number(data.id_pendaftaran);
-            ["suhu_tubuh", "berat_badan", "tinggi_badan"].forEach(function (field) { if (data[field]) data[field] = Number(data[field]); });
+            ["suhu_tubuh", "berat_badan", "tinggi_badan", "laju_respirasi"].forEach(function (field) { if (data[field]) data[field] = Number(data[field]); });
             if (data.id_obat) {
                 data.resep = {
                     detail: [{
@@ -367,7 +403,7 @@ function bindPageActions() {
                 setBusy(button, true, "Menyimpan...");
                 try {
                     const data = formObject(form);
-                    ["suhu_tubuh", "berat_badan", "tinggi_badan"].forEach(function (field) {
+                    ["suhu_tubuh", "berat_badan", "tinggi_badan", "laju_respirasi"].forEach(function (field) {
                         data[field] = Number(data[field]);
                     });
                     await request("perawat/antrian/" + form.dataset.triageForm + "/triase", {

@@ -47,6 +47,8 @@ function renderDoctor() {
             '<div class="field-wrap"><label class="field-label">Suhu (°C)</label><input class="field" name="suhu_tubuh" type="number" step="0.1"></div>' +
             '<div class="field-wrap"><label class="field-label">Berat (kg)</label><input class="field" name="berat_badan" type="number" step="0.1"></div>' +
             '<div class="field-wrap"><label class="field-label">Tinggi (cm)</label><input class="field" name="tinggi_badan" type="number" step="0.1"></div>' +
+            '<div class="field-wrap"><label class="field-label">Laju respirasi (x/menit)</label><input class="field" name="laju_respirasi" type="number" min="1" max="80" step="1" placeholder="18"></div>' +
+            '<div class="field-wrap field-full"><label class="field-label">Alergi obat</label><textarea class="field textarea" name="alergi_obat" rows="2" maxlength="2000" placeholder="Tidak ada, atau sebutkan obat"></textarea></div>' +
             '<div class="field-wrap field-full"><label class="field-label">Catatan dokter</label><textarea class="field textarea" name="catatan_dokter" rows="2"></textarea></div>' +
             '<div class="field-full"><h3>Resep obat (opsional)</h3><p class="text-muted">Jika diisi, resep langsung masuk antrean farmasi apotek rumah sakit.</p></div>' +
             '<div class="field-wrap"><label class="field-label">Obat</label><select class="field" name="id_obat"><option value="">Tidak membuat resep</option>' + medicineOptions + '</select></div>' +
@@ -55,13 +57,14 @@ function renderDoctor() {
             '<div class="field-full form-actions"><button class="button button-primary" type="submit">Simpan pemeriksaan & resep</button></div></form>';
         const clinicalHistoryForm = '<form id="clinicalHistoryForm" class="form-grid">' +
             '<div class="field-wrap"><label class="field-label">Alergi</label><textarea class="field textarea" name="alergi" rows="2" maxlength="5000"></textarea></div>' +
+            '<div class="field-wrap"><label class="field-label">Alergi obat</label><textarea class="field textarea" name="alergi_obat" rows="2" maxlength="2000" placeholder="Tidak ada, atau sebutkan obat"></textarea></div>' +
             '<div class="field-wrap"><label class="field-label">Obat aktif</label><textarea class="field textarea" name="obat_aktif" rows="2" maxlength="5000"></textarea></div>' +
             '<div class="field-full form-actions"><button class="button button-secondary" type="submit">Simpan riwayat klinis</button></div></form>';
-        const historyRows = examinations.map(function (item) { return '<tr><td>' + formatDateTime(item.waktu_mulai) + '</td><td>' + escapeHtml(item.nama_pasien) + '</td><td>' + escapeHtml(item.diagnosis) + '</td><td>' + escapeHtml(item.tindakan) + '</td></tr>'; });
-        return '<div class="page-intro"><div><h2>Catat pemeriksaan</h2><p>Pasien harus berstatus Dipanggil atau Masuk Ruangan.</p></div></div>' +
+        const historyRows = examinations.map(function (item) { return '<tr><td>' + formatDateTime(item.waktu_mulai) + '</td><td>' + escapeHtml(item.nama_pasien) + '</td><td>' + escapeHtml(item.laju_respirasi || "—") + '</td><td>' + escapeHtml(item.alergi_obat || "—") + '</td><td>' + escapeHtml(item.diagnosis) + '</td><td>' + escapeHtml(item.tindakan) + '</td></tr>'; });
+        return '<div class="page-intro"><div><h2>Catat pemeriksaan</h2><p>Pasien harus berstatus Dipanggil atau Masuk Ruangan. Keluhan, tanda vital, laju respirasi, dan alergi obat dari perawat terisi otomatis.</p></div></div>' +
             panel("Pemeriksaan baru", form) +
-            panel("Riwayat klinis pasien", '<p class="text-muted">Alergi dan obat aktif hanya terlihat oleh pasien terkait dan dokter yang menangani kunjungannya.</p>' + clinicalHistoryForm) +
-            panel("Riwayat pemeriksaan", table(["Waktu", "Pasien", "Diagnosis", "Tindakan"], historyRows, "Belum ada pemeriksaan."));
+            panel("Riwayat klinis pasien", '<p class="text-muted">Alergi, alergi obat, dan obat aktif hanya terlihat oleh pasien terkait dan dokter yang menangani kunjungannya.</p>' + clinicalHistoryForm) +
+            panel("Riwayat pemeriksaan", table(["Waktu", "Pasien", "Respirasi", "Alergi obat", "Diagnosis", "Tindakan"], historyRows, "Belum ada pemeriksaan."));
     }
     return '<div class="empty-state">Halaman tidak ditemukan.</div>';
 }
@@ -72,18 +75,55 @@ function renderDoctorTriageSummary(appointmentId) {
     const item = (state.data.queue || []).find(function (entry) {
         return String(entry.id_pendaftaran) === String(appointmentId);
     });
+    const form = document.getElementById("examinationForm");
     if (!item || !item.keluhan_awal) {
         summary.className = "field-full empty-state";
         summary.textContent = "Pilih pasien untuk melihat catatan pemeriksaan awal perawat.";
+        applyNurseNotes(form, null);
         return;
     }
     summary.className = "field-full info-card";
     summary.innerHTML = '<strong>Pemeriksaan awal perawat</strong><p>Dicatat oleh ' + escapeHtml(item.nama_perawat || "Perawat") +
         ' • ' + formatDateTime(item.waktu_triase) + '</p><p><strong>Keluhan:</strong> ' + escapeHtml(item.keluhan_awal) +
         '<br><strong>Tanda vital:</strong> TD ' + escapeHtml(item.tekanan_darah_awal) +
-        ', suhu ' + escapeHtml(item.suhu_tubuh_awal) + ' °C, berat ' + escapeHtml(item.berat_badan_awal) +
+        ', suhu ' + escapeHtml(item.suhu_tubuh_awal) + ' °C, respirasi ' + escapeHtml(item.laju_respirasi_awal) +
+        ' x/menit, berat ' + escapeHtml(item.berat_badan_awal) +
         ' kg, tinggi ' + escapeHtml(item.tinggi_badan_awal) + ' cm' +
-        (item.catatan_perawat ? '<br><strong>Catatan:</strong> ' + escapeHtml(item.catatan_perawat) : "") + '</p>';
+        '<br><strong>Alergi obat:</strong> ' + escapeHtml(item.alergi_obat_awal || "Belum dicatat") +
+        (item.catatan_perawat ? '<br><strong>Catatan:</strong> ' + escapeHtml(item.catatan_perawat) : "") +
+        '</p><p class="text-muted">Keluhan, tanda vital, laju respirasi, dan alergi obat sudah dimasukkan ke formulir. Ubah hanya jika ada koreksi, lalu lengkapi diagnosis dan tindakan.</p>';
+    applyNurseNotes(form, item);
+}
+
+function applyNurseNotes(form, item) {
+    if (!form) return;
+    const values = item ? {
+        keluhan: item.keluhan_awal || "",
+        tekanan_darah: item.tekanan_darah_awal || "",
+        suhu_tubuh: nurseMeasure(item.suhu_tubuh_awal),
+        berat_badan: nurseMeasure(item.berat_badan_awal),
+        tinggi_badan: nurseMeasure(item.tinggi_badan_awal),
+        laju_respirasi: nurseMeasure(item.laju_respirasi_awal),
+        alergi_obat: item.alergi_obat_awal || ""
+    } : {
+        keluhan: "",
+        tekanan_darah: "",
+        suhu_tubuh: "",
+        berat_badan: "",
+        tinggi_badan: "",
+        laju_respirasi: "",
+        alergi_obat: ""
+    };
+    Object.keys(values).forEach(function (name) {
+        const field = form.elements.namedItem(name);
+        if (field) field.value = values[name];
+    });
+}
+
+function nurseMeasure(value) {
+    if (value === null || value === undefined || value === "") return "";
+    const number = Number(value);
+    return Number.isFinite(number) ? String(number) : String(value);
 }
 
 function doctorQueueTable(items) {
@@ -94,7 +134,7 @@ function doctorQueueTable(items) {
         const select = allowed.length ? '<select class="field" data-queue-status="' + escapeHtml(item.id_pendaftaran) + '" aria-label="Ubah status">' +
             '<option value="">Ubah status</option>' + allowed.map(function (status) { return '<option value="' + escapeHtml(status) + '">' + escapeHtml(status) + '</option>'; }).join("") + '</select>' : '<span class="text-muted">—</span>';
         const triage = item.keluhan_awal
-            ? '<span class="cell-secondary">Pemeriksaan awal: ' + escapeHtml(item.keluhan_awal) + ' • TD ' + escapeHtml(item.tekanan_darah_awal) + ' • Perawat ' + escapeHtml(item.nama_perawat || "—") + '</span>'
+            ? '<span class="cell-secondary">Pemeriksaan awal: ' + escapeHtml(item.keluhan_awal) + ' • TD ' + escapeHtml(item.tekanan_darah_awal) + ' • RR ' + escapeHtml(item.laju_respirasi_awal) + 'x/mnt • Alergi obat: ' + escapeHtml(item.alergi_obat_awal || "—") + ' • Perawat ' + escapeHtml(item.nama_perawat || "—") + '</span>'
             : '<span class="cell-secondary">Belum ada pemeriksaan awal perawat</span>';
         const estimate = item.estimasi_jam_masuk ? '<span class="cell-secondary">Perkiraan ' + formatDateTime(item.estimasi_jam_masuk) + '</span>' : "";
         const checkedIn = item.waktu_check_in ? '<span class="cell-secondary">Check-in ' + formatDateTime(item.waktu_check_in) + '</span>' : "";
@@ -124,6 +164,7 @@ async function loadDoctorClinicalHistory(appointmentId) {
         const stillSelected = document.querySelector('#examinationForm select[name="id_pendaftaran"]');
         if (!stillSelected || String(stillSelected.value) !== String(appointmentId)) return;
         form.elements.namedItem("alergi").value = result.data.alergi || "";
+        form.elements.namedItem("alergi_obat").value = result.data.alergi_obat || "";
         form.elements.namedItem("obat_aktif").value = result.data.obat_aktif || "";
     } catch (error) {
         showToast(error.message, true);

@@ -15,7 +15,7 @@ function renderPatient() {
         const upcoming = appointments.filter(function (item) { return activeStatuses.includes(item.status_antrean); });
         return '<div class="page-intro"><div><h2>Halo, ' + escapeHtml(profile.nama_lengkap || state.user.username) + '</h2><p>Ringkasan kunjungan dan informasi kesehatan Anda.</p></div></div>' +
             statCards([["Pendaftaran aktif", upcoming.length], ["Pemeriksaan tercatat", exams.length], ["Resep", recipes.length], ["Notifikasi", notifications.length]]) +
-            panel("Informasi kesehatan", '<p><strong>Alergi:</strong> ' + escapeHtml(clinicalHistory.alergi || "Belum dicatat") + '</p><p><strong>Obat aktif:</strong> ' + escapeHtml(clinicalHistory.obat_aktif || "Belum dicatat") + '</p><p class="text-muted">Informasi ini dicatat dokter dan dapat diperbarui saat pemeriksaan.</p>', "Catatan klinis Anda") +
+            panel("Informasi kesehatan", '<p><strong>Alergi:</strong> ' + escapeHtml(clinicalHistory.alergi || "Belum dicatat") + '</p><p><strong>Alergi obat:</strong> ' + escapeHtml(clinicalHistory.alergi_obat || "Belum dicatat") + '</p><p><strong>Obat aktif:</strong> ' + escapeHtml(clinicalHistory.obat_aktif || "Belum dicatat") + '</p><p class="text-muted">Alergi obat dicatat saat pemeriksaan. Alergi umum dan obat aktif dapat diperbarui dokter.</p>', "Catatan klinis Anda") +
             panel("Notifikasi perangkat", deviceNotificationSettings(), "Tampilkan pemberitahuan di perangkat ini") +
             panel("Praktik hari ini", todayScheduleList(schedules), "Jadwal lengkap ada di menu Antrean & jadwal") +
             panel("Pendaftaran terbaru", appointmentTable(appointments.slice(0, 5), schedules), "Status antrean kunjungan Anda") +
@@ -222,7 +222,7 @@ function filterAppointments(appointments, schedules, filters) {
 function filterExaminations(exams, filters) {
     return exams.filter(function (item) {
         if (!withinDateRange(item.waktu_mulai, filters.from, filters.to)) return false;
-        return includesQuery(filters.query, [item.keluhan, item.diagnosis, item.tindakan, item.catatan_dokter, item.waktu_mulai]);
+        return includesQuery(filters.query, [item.keluhan, item.diagnosis, item.tindakan, item.catatan_dokter, item.alergi_obat, item.laju_respirasi, item.waktu_mulai]);
     });
 }
 
@@ -263,7 +263,7 @@ function examinationEmptyText(exams, filtered, filters) {
 
 function examinationRows(exams) {
     return exams.map(function (item) {
-        return '<tr><td>' + formatDateTime(item.waktu_mulai) + '</td><td>' + escapeHtml(item.keluhan) + '</td><td>' + escapeHtml(item.diagnosis) + '</td><td>' + escapeHtml(item.tindakan) + '</td></tr>';
+        return '<tr><td>' + formatDateTime(item.waktu_mulai) + '</td><td>' + escapeHtml(item.keluhan) + '</td><td>' + escapeHtml(item.diagnosis) + '</td><td>' + escapeHtml(item.tindakan) + '</td><td>' + escapeHtml(item.laju_respirasi || "—") + '</td><td>' + escapeHtml(item.alergi_obat || "—") + '</td></tr>';
     });
 }
 
@@ -301,7 +301,7 @@ function examinationHistoryPanel(exams) {
         filterField("Cari", '<input class="field" id="examinationQueryFilter" name="query" type="search" maxlength="100" placeholder="Keluhan, diagnosis, atau tindakan" value="' + escapeHtml(filters.query) + '">') +
         '<div class="history-filter-actions"><button class="button button-secondary" id="examinationFilterReset" type="button">Atur ulang</button></div></form>' +
         '<p class="filter-summary" id="examinationFilterSummary" aria-live="polite">' + escapeHtml(examinationFilterSummary(exams, filtered, filters)) + '</p>' +
-        '<div id="examinationHistoryResults">' + table(["Waktu", "Keluhan", "Diagnosis", "Tindakan"], examinationRows(filtered), examinationEmptyText(exams, filtered, filters)) + '</div>';
+        '<div id="examinationHistoryResults">' + table(["Waktu", "Keluhan", "Diagnosis", "Tindakan", "Respirasi", "Alergi obat"], examinationRows(filtered), examinationEmptyText(exams, filtered, filters)) + '</div>';
 }
 
 function readNamedFilters(form, defaults) {
@@ -345,7 +345,7 @@ function renderExaminationHistoryResults() {
     const invalid = invalidDateRange(filters);
     const filtered = invalid ? [] : filterExaminations(exams, filters);
     summary.textContent = examinationFilterSummary(exams, filtered, filters);
-    results.innerHTML = table(["Waktu", "Keluhan", "Diagnosis", "Tindakan"], examinationRows(filtered), examinationEmptyText(exams, filtered, filters));
+    results.innerHTML = table(["Waktu", "Keluhan", "Diagnosis", "Tindakan", "Respirasi", "Alergi obat"], examinationRows(filtered), examinationEmptyText(exams, filtered, filters));
 }
 
 function bindPatientHistoryFilters() {

@@ -64,11 +64,13 @@ optional. To register an appointment, send `id_jadwal` and
 `tanggal_kunjungan` (`YYYY-MM-DD`) to `POST /api/pasien/pendaftaran`.
 
 Nurses record the patient's initial complaint, blood pressure, temperature,
-weight, height, and optional nursing note. Saving the assessment changes the
-appointment status from `Menunggu` to `Siap Diperiksa`. Doctors can then call
-the patient, review the nurse's notes in their queue and examination form, and
-continue with diagnosis and treatment. The patient is not marked ready for the
-doctor until the nurse's assessment has been saved.
+weight, height, respiration rate (1–80 breaths per minute), drug allergy, and
+optional nursing note. Saving the assessment changes the appointment status
+from `Menunggu` to `Siap Diperiksa` and stores the drug allergy on the patient
+record. Doctors can then call the patient. The examination form fills the
+complaint, vital signs, respiration rate, and drug allergy from that
+assessment, so the doctor continues with diagnosis and treatment. The patient
+is not marked ready for the doctor until the nurse's assessment has been saved.
 
 Back up the database, then run `php spark migrate` after updating the
 application. Migrations add nurse triage, patient call/room-entry notifications,

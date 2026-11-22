@@ -229,7 +229,8 @@ class PendaftaranPoliController extends BaseApiController
                 'jadwal_dokter.hari, jadwal_dokter.jam_mulai, jadwal_dokter.jam_selesai, ' .
                 'triase_perawat.keluhan_awal, triase_perawat.tekanan_darah AS tekanan_darah_awal, ' .
                 'triase_perawat.suhu_tubuh AS suhu_tubuh_awal, triase_perawat.berat_badan AS berat_badan_awal, ' .
-                'triase_perawat.tinggi_badan AS tinggi_badan_awal, triase_perawat.catatan_perawat, ' .
+                'triase_perawat.tinggi_badan AS tinggi_badan_awal, triase_perawat.laju_respirasi AS laju_respirasi_awal, ' .
+                'triase_perawat.alergi_obat AS alergi_obat_awal, triase_perawat.catatan_perawat, ' .
                 'triase_perawat.waktu_triase, users.nama_lengkap AS nama_perawat'
             )
             ->join('pasien', 'pasien.id_pasien = pendaftaran_poli.id_pasien')

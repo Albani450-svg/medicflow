@@ -63,6 +63,7 @@ $routes->group('api/farmasi', ['filter' => 'jwt:farmasi'], static function ($rou
     $routes->post('mutasi-stok', 'Api\MutasiStokController::create');
     $routes->post('pengambilan-obat/preview', 'Api\PengambilanObatController::preview');
     $routes->post('pengambilan-obat', 'Api\PengambilanObatController::dispense');
+    $routes->get('laporan/pengeluaran-obat', 'Api\LaporanController::medicine');
 });
 
 $routes->group('api/admin', ['filter' => 'jwt:admin'], static function ($routes) {
@@ -92,6 +93,8 @@ $routes->group('api/admin', ['filter' => 'jwt:admin'], static function ($routes)
         $routes->delete($path . '/(:num)', $target . '::delete/$1');
     }
 
+    $routes->get('laporan/kunjungan', 'Api\LaporanController::visits');
+    $routes->get('laporan/pengeluaran-obat', 'Api\LaporanController::medicine');
     $routes->get('mutasi-stok', 'Api\MutasiStokController::index');
     $routes->get('log-aktivitas', 'Api\LogAktivitasController::index');
     $routes->get('log-aktivitas/(:num)', 'Api\LogAktivitasController::show/$1');

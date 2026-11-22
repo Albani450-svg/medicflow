@@ -142,6 +142,8 @@ body.nav-open .menu-toggle-bars::after { top: 0; transform: rotate(-45deg); }
 .inline-form .field-label { margin-bottom: 6px; font-size: 10px; }
 .inline-form .field { min-height: 46px; font-size: 16px; }
 .inline-form .button { min-height: 46px; }
+.report-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+.report-actions .button { min-height: 46px; }
 .history-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); align-items: end; gap: 12px; margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid #edf2ef; }
 .history-filters .field-label { margin-bottom: 6px; font-size: 10px; }
 .history-filters .field { min-height: 46px; font-size: 16px; }
@@ -233,7 +235,8 @@ body.nav-open .menu-toggle-bars::after { top: 0; transform: rotate(-45deg); }
     .content-area { padding: 18px 14px calc(28px + env(safe-area-inset-bottom)); }
     .page-intro, .panel-heading { flex-direction: column; align-items: stretch; }
     .form-grid, .card-grid, .history-filters, .inline-form, .schedule-board { grid-template-columns: 1fr; }
-    .inline-form > .button, .history-filter-actions .button { width: 100%; }
+    .inline-form > .button, .history-filter-actions .button, .report-actions .button { width: 100%; }
+    .report-actions { flex-direction: column; align-items: stretch; }
     .form-actions { flex-direction: column-reverse; align-items: stretch; }
     .form-actions .button, .qr-actions .button { width: 100%; }
     .toast { top: auto; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); left: 12px; max-width: none; }
