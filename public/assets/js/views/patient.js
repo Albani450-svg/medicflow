@@ -17,6 +17,7 @@ function renderPatient() {
             statCards([["Pendaftaran aktif", upcoming.length], ["Pemeriksaan tercatat", exams.length], ["Resep", recipes.length], ["Notifikasi", notifications.length]]) +
             panel("Informasi kesehatan", '<p><strong>Alergi:</strong> ' + escapeHtml(clinicalHistory.alergi || "Belum dicatat") + '</p><p><strong>Obat aktif:</strong> ' + escapeHtml(clinicalHistory.obat_aktif || "Belum dicatat") + '</p><p class="text-muted">Informasi ini dicatat dokter dan dapat diperbarui saat pemeriksaan.</p>', "Catatan klinis Anda") +
             panel("Notifikasi perangkat", deviceNotificationSettings(), "Tampilkan pemberitahuan di perangkat ini") +
+            panel("Praktik hari ini", todayScheduleList(schedules), "Jadwal lengkap ada di menu Antrean & jadwal") +
             panel("Pendaftaran terbaru", appointmentTable(appointments.slice(0, 5), schedules), "Status antrean kunjungan Anda") +
             panel("Notifikasi terbaru", notificationList(notifications.slice(0, 4)), "Informasi dari layanan MedicFlow");
     }
@@ -27,7 +28,8 @@ function renderPatient() {
             const label = doctor + poli + " • " + item.hari + " " + String(item.jam_mulai).slice(0, 5) + "–" + String(item.jam_selesai).slice(0, 5);
             return '<option value="' + escapeHtml(item.id_jadwal) + '">' + escapeHtml(label) + '</option>';
         }).join("");
-        return '<div class="page-intro"><div><h2>Jadwalkan kunjungan</h2><p>Pilih jadwal praktik aktif dan tanggal yang sesuai dengan hari praktik.</p></div></div>' +
+        return '<div class="page-intro"><div><h2>Jadwalkan kunjungan</h2><p>Pilih jadwal praktik aktif dan tanggal yang sesuai dengan hari praktik. Anda dapat mendaftar ke dua dokter atau lebih pada hari yang sama.</p></div></div>' +
+            panel("Jadwal dokter", doctorScheduleBoard(schedules), "Seluruh jadwal praktik yang sedang aktif") +
             panel("Daftar antrean baru", '<form id="appointmentForm" class="inline-form">' +
                 '<div><label class="field-label" for="scheduleId">Dokter & jadwal praktik</label><select class="field" id="scheduleId" name="id_jadwal" required><option value="">Pilih jadwal</option>' + scheduleOptions + '</select></div>' +
                 '<div><label class="field-label" for="visitDate">Tanggal kunjungan</label><input class="field" id="visitDate" name="tanggal_kunjungan" type="date" min="' + new Date().toISOString().slice(0, 10) + '" required></div>' +
@@ -71,6 +73,79 @@ function renderPatient() {
 }
 
 const queueStatuses = ["Menunggu", "Siap Diperiksa", "Dipanggil", "Masuk Ruangan", "Selesai Pemeriksaan", "Batal"];
+const practiceDays = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
+
+function localWeekdayName(date) {
+    return ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"][date.getDay()];
+}
+
+function localDateValue(date) {
+    return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
+}
+
+function nextPracticeDate(dayName, currentValue) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (currentValue && /^\d{4}-\d{2}-\d{2}$/.test(currentValue)) {
+        const current = new Date(currentValue + "T00:00:00");
+        if (!Number.isNaN(current.getTime()) && current >= today && localWeekdayName(current) === dayName) {
+            return currentValue;
+        }
+    }
+    const target = practiceDays.indexOf(dayName);
+    const todayIndex = practiceDays.indexOf(localWeekdayName(today));
+    const delta = target < 0 || todayIndex < 0 ? 0 : (target - todayIndex + 7) % 7;
+    const next = new Date(today);
+    next.setDate(today.getDate() + delta);
+    return localDateValue(next);
+}
+
+function scheduleTimeLabel(item) {
+    return String(item.jam_mulai || "").slice(0, 5) + "–" + String(item.jam_selesai || "").slice(0, 5);
+}
+
+function sortedSchedules(schedules) {
+    return schedules.slice().sort(function (left, right) {
+        const day = practiceDays.indexOf(left.hari) - practiceDays.indexOf(right.hari);
+        if (day !== 0) return day;
+        const time = String(left.jam_mulai).localeCompare(String(right.jam_mulai));
+        if (time !== 0) return time;
+        return String(left.nama_dokter || "").localeCompare(String(right.nama_dokter || ""), "id");
+    });
+}
+
+function scheduleSlotCard(item, pickable) {
+    const detail = (item.nama_poli || "Poliklinik") + (item.spesialisasi ? " • " + item.spesialisasi : "");
+    const action = pickable
+        ? '<button class="button button-secondary button-small" type="button" data-pick-schedule="' + escapeHtml(item.id_jadwal) + '" data-schedule-day="' + escapeHtml(item.hari) + '">Pilih jadwal</button>'
+        : "";
+    return '<article class="schedule-slot"><div><strong>' + escapeHtml(item.nama_dokter || "Dokter") + '</strong><span>' + escapeHtml(detail) + '</span><span>' + escapeHtml(scheduleTimeLabel(item)) + " • Kuota " + escapeHtml(item.kuota_maksimal) + '</span></div>' + action + '</article>';
+}
+
+function doctorScheduleBoard(schedules) {
+    const grouped = {};
+    practiceDays.forEach(function (day) { grouped[day] = []; });
+    sortedSchedules(schedules).forEach(function (item) {
+        if (!grouped[item.hari]) grouped[item.hari] = [];
+        grouped[item.hari].push(item);
+    });
+    const todayName = localWeekdayName(new Date());
+    if (!schedules.length) return '<div class="empty-state">Belum ada jadwal dokter yang aktif.</div>';
+    return '<div class="schedule-board">' + practiceDays.map(function (day) {
+        const slots = grouped[day];
+        const body = slots.length
+            ? slots.map(function (item) { return scheduleSlotCard(item, true); }).join("")
+            : '<p class="schedule-empty">Tidak ada praktik</p>';
+        return '<section class="schedule-day' + (day === todayName ? " is-today" : "") + '"><h4>' + escapeHtml(day) + (day === todayName ? '<span>Hari ini</span>' : "") + '</h4>' + body + '</section>';
+    }).join("") + '</div>';
+}
+
+function todayScheduleList(schedules) {
+    const todayName = localWeekdayName(new Date());
+    const slots = sortedSchedules(schedules).filter(function (item) { return item.hari === todayName; });
+    if (!slots.length) return '<div class="empty-state">Tidak ada praktik dokter pada hari ' + escapeHtml(todayName) + '.</div>';
+    return '<div class="schedule-list">' + slots.map(function (item) { return scheduleSlotCard(item, false); }).join("") + '</div>';
+}
 
 function defaultAppointmentFilters() {
     return { status: "semua", checkin: "semua", doctor: "semua", from: "", to: "", query: "" };

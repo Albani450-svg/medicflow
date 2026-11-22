@@ -91,27 +91,6 @@ class PendaftaranPoliController extends BaseApiController
             ]);
         }
 
-        $overlap = $db->table('pendaftaran_poli')
-            ->select('pendaftaran_poli.id_pendaftaran')
-            ->join('jadwal_dokter', 'jadwal_dokter.id_jadwal = pendaftaran_poli.id_jadwal')
-            ->where('pendaftaran_poli.id_pasien', $patientId)
-            ->where('pendaftaran_poli.tanggal_kunjungan', $date)
-            ->where('pendaftaran_poli.status_antrean !=', 'Batal')
-            ->where('jadwal_dokter.jam_mulai <', $schedule['jam_selesai'])
-            ->where('jadwal_dokter.jam_selesai >', $schedule['jam_mulai'])
-            ->limit(1)
-            ->get()
-            ->getRowArray();
-
-        if ($overlap) {
-            $db->transRollback();
-
-            return $this->response->setStatusCode(409)->setJSON([
-                'status' => false,
-                'message' => 'Waktu jadwal ini bertabrakan dengan kunjungan Anda yang lain',
-            ]);
-        }
-
         $duplicate = $this->model
             ->where('id_pasien', $patientId)
             ->where('id_jadwal', $scheduleId)
@@ -125,6 +104,30 @@ class PendaftaranPoliController extends BaseApiController
             return $this->response->setStatusCode(409)->setJSON([
                 'status'  => false,
                 'message' => 'Anda sudah memiliki pendaftaran pada jadwal tersebut',
+            ]);
+        }
+
+        // Beberapa dokter pada hari yang sama diizinkan, termasuk jika jam praktik bertumpuk.
+        // Tabrakan jam hanya ditolak untuk dokter yang sama.
+        $sameDoctorOverlap = $db->table('pendaftaran_poli')
+            ->select('pendaftaran_poli.id_pendaftaran')
+            ->join('jadwal_dokter', 'jadwal_dokter.id_jadwal = pendaftaran_poli.id_jadwal')
+            ->where('pendaftaran_poli.id_pasien', $patientId)
+            ->where('pendaftaran_poli.tanggal_kunjungan', $date)
+            ->where('pendaftaran_poli.status_antrean !=', 'Batal')
+            ->where('jadwal_dokter.id_dokter', $schedule['id_dokter'])
+            ->where('jadwal_dokter.jam_mulai <', $schedule['jam_selesai'])
+            ->where('jadwal_dokter.jam_selesai >', $schedule['jam_mulai'])
+            ->limit(1)
+            ->get()
+            ->getRowArray();
+
+        if ($sameDoctorOverlap) {
+            $db->transRollback();
+
+            return $this->response->setStatusCode(409)->setJSON([
+                'status' => false,
+                'message' => 'Anda sudah memiliki pendaftaran dengan dokter ini pada jam yang bertabrakan',
             ]);
         }
 

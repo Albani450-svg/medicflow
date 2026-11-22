@@ -92,10 +92,13 @@ is not Web Push and does not notify patients while the browser is closed or
 offline.
 
 Patients can check in for a `Menunggu` appointment on the visit date from the
-appointment list. The system blocks overlapping patient bookings and doctor
-schedules, and shows an estimated entry time based on the queue number and the
-doctor's average examination duration. Appointment dates and operational
-timestamps use the `Asia/Jakarta` application timezone by default.
+appointment list. A patient may register with two or more doctors on the same
+day, even when those practice hours overlap. The system still blocks a second
+booking on the same schedule and overlapping sessions with the same doctor.
+Doctor schedule creation also blocks overlapping sessions for that doctor. The
+queue shows an estimated entry time based on the queue number and the doctor's
+average examination duration. Appointment dates and operational timestamps use
+the `Asia/Jakarta` application timezone by default.
 
 Doctors can maintain a patient's allergy and active-medication notes from the
 examination form while the patient's visit is `Dipanggil` or `Masuk Ruangan`.

@@ -117,6 +117,103 @@ class MedicFlowDemoSeeder extends Seeder
                 ]);
             }
 
+            $dentalClinic = $this->ensureClinic('Poli Gigi', 'Poliklinik gigi untuk akun demo lokal.', $now);
+            $dentalUserId = $this->ensureUser('demo_dokter2', 'dokter', 'Dr. Gigi Demo', '081200000206', $now);
+            $dentalDoctorId = $this->ensureDoctor(
+                $dentalUserId,
+                (int) $dentalClinic['id_poli'],
+                'Dr. Gigi Demo',
+                'Dokter Gigi',
+                $now
+            );
+            $this->ensureSchedule($dentalDoctorId, 'Senin', '09:00:00', '12:00:00', $now);
+            $this->seedPracticeWeek($doctorId, [
+                ['Selasa', '09:00:00', '12:00:00'],
+                ['Rabu', '09:00:00', '12:00:00'],
+                ['Kamis', '09:00:00', '12:00:00'],
+                ['Jumat', '09:00:00', '12:00:00'],
+                ['Sabtu', '09:00:00', '12:00:00'],
+                ['Senin', '13:00:00', '16:00:00'],
+                ['Rabu', '13:00:00', '16:00:00'],
+                ['Jumat', '13:00:00', '16:00:00'],
+            ], $now);
+            $this->seedPracticeWeek($dentalDoctorId, [
+                ['Selasa', '09:00:00', '12:00:00'],
+                ['Rabu', '09:00:00', '12:00:00'],
+                ['Kamis', '09:00:00', '12:00:00'],
+                ['Jumat', '09:00:00', '12:00:00'],
+                ['Sabtu', '08:00:00', '11:00:00'],
+                ['Selasa', '13:00:00', '15:00:00'],
+                ['Kamis', '13:00:00', '15:00:00'],
+            ], $now);
+            $this->ensureClinicDoctor(
+                'Poli Anak',
+                'Poliklinik anak untuk akun demo lokal.',
+                'demo_dokter_anak',
+                'Dr. Anak Demo',
+                '081200000207',
+                'Spesialis Anak',
+                [
+                    ['Senin', '08:00:00', '12:00:00'],
+                    ['Rabu', '08:00:00', '12:00:00'],
+                    ['Jumat', '08:00:00', '12:00:00'],
+                ],
+                $now
+            );
+            $this->ensureClinicDoctor(
+                'Poli Kandungan',
+                'Poliklinik kandungan untuk akun demo lokal.',
+                'demo_dokter_kandungan',
+                'Dr. Kandungan Demo',
+                '081200000208',
+                'Spesialis Kandungan',
+                [
+                    ['Selasa', '09:00:00', '12:00:00'],
+                    ['Kamis', '09:00:00', '12:00:00'],
+                    ['Sabtu', '09:00:00', '12:00:00'],
+                ],
+                $now
+            );
+            $this->ensureClinicDoctor(
+                'Poli Mata',
+                'Poliklinik mata untuk akun demo lokal.',
+                'demo_dokter_mata',
+                'Dr. Mata Demo',
+                '081200000209',
+                'Spesialis Mata',
+                [
+                    ['Senin', '13:00:00', '16:00:00'],
+                    ['Kamis', '13:00:00', '16:00:00'],
+                ],
+                $now
+            );
+            $this->ensureClinicDoctor(
+                'Poli THT',
+                'Poliklinik telinga, hidung, dan tenggorokan untuk akun demo lokal.',
+                'demo_dokter_tht',
+                'Dr. THT Demo',
+                '081200000210',
+                'Spesialis THT',
+                [
+                    ['Selasa', '13:00:00', '16:00:00'],
+                    ['Jumat', '13:00:00', '16:00:00'],
+                ],
+                $now
+            );
+            $this->ensureClinicDoctor(
+                'Poli Jantung',
+                'Poliklinik jantung untuk akun demo lokal.',
+                'demo_dokter_jantung',
+                'Dr. Jantung Demo',
+                '081200000211',
+                'Spesialis Jantung',
+                [
+                    ['Rabu', '08:00:00', '11:00:00'],
+                    ['Sabtu', '08:00:00', '11:00:00'],
+                ],
+                $now
+            );
+
             if (!$this->db->transStatus()) {
                 throw new RuntimeException('Database menolak sebagian data demo.');
             }
@@ -127,15 +224,120 @@ class MedicFlowDemoSeeder extends Seeder
             CLI::write('Akun demo (password semua akun: ' . self::DEMO_PASSWORD . '):');
             CLI::write('  admin    : demo_admin');
             CLI::write('  dokter   : demo_dokter');
+            CLI::write('  dokter 2 : demo_dokter2');
             CLI::write('  perawat  : demo_perawat');
             CLI::write('  farmasi  : demo_farmasi');
             CLI::write('  pasien   : demo_pasien');
-            CLI::write('Jadwal demo: Senin ' . $scheduleDate . ' pukul 09:00-12:00; antrean pasien berstatus Menunggu.');
+            CLI::write('Poli demo: Umum, Gigi, Anak, Kandungan, Mata, THT, dan Jantung.');
+            CLI::write('Dokter poli lain: demo_dokter_anak, demo_dokter_kandungan, demo_dokter_mata, demo_dokter_tht, demo_dokter_jantung.');
+            CLI::write('Jadwal demo lengkap untuk setiap poli. Minggu tidak ada praktik.');
+            CLI::write('Antrean pasien demo tetap pada Senin ' . $scheduleDate . ' pukul 09:00-12:00.');
+            CLI::write('Pasien dapat mendaftar ke kedua dokter pada hari yang sama.');
             CLI::write('Alur uji: catat pemeriksaan awal sebagai perawat, panggil dan periksa pasien sebagai dokter, lalu lanjutkan resep.');
         } catch (\Throwable $exception) {
             $this->db->transRollback();
             throw $exception;
         }
+    }
+
+    private function ensureClinicDoctor(
+        string $clinicName,
+        string $description,
+        string $username,
+        string $doctorName,
+        string $phone,
+        string $specialty,
+        array $sessions,
+        string $now
+    ): void {
+        $clinic = $this->ensureClinic($clinicName, $description, $now);
+        $userId = $this->ensureUser($username, 'dokter', $doctorName, $phone, $now);
+        $doctorId = $this->ensureDoctor($userId, (int) $clinic['id_poli'], $doctorName, $specialty, $now);
+        $this->seedPracticeWeek($doctorId, $sessions, $now);
+    }
+
+    private function ensureClinic(string $name, string $description, string $now): array
+    {
+        $clinic = $this->db->table('poliklinik')->where('nama_poli', $name)->get()->getRowArray();
+
+        if ($clinic) {
+            if ((int) $clinic['is_active'] !== 1) {
+                $this->db->table('poliklinik')->where('id_poli', $clinic['id_poli'])->update([
+                    'is_active'  => 1,
+                    'updated_at' => $now,
+                ]);
+                $clinic['is_active'] = 1;
+            }
+
+            return $clinic;
+        }
+
+        $this->db->table('poliklinik')->insert([
+            'nama_poli'  => $name,
+            'deskripsi'  => $description,
+            'is_active'  => 1,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        return $this->db->table('poliklinik')->where('id_poli', (int) $this->db->insertID())->get()->getRowArray();
+    }
+
+    private function ensureDoctor(int $userId, int $clinicId, string $name, string $specialty, string $now): int
+    {
+        $doctor = $this->db->table('dokter')->where('id_user', $userId)->get()->getRowArray();
+
+        if ($doctor) {
+            return (int) $doctor['id_dokter'];
+        }
+
+        $this->db->table('dokter')->insert([
+            'id_user'                  => $userId,
+            'id_poli'                  => $clinicId,
+            'nama_dokter'              => $name,
+            'spesialisasi'             => $specialty,
+            'rata_waktu_periksa_menit' => 15,
+            'is_active'                => 1,
+            'created_at'               => $now,
+            'updated_at'               => $now,
+        ]);
+
+        return (int) $this->db->insertID();
+    }
+
+    private function seedPracticeWeek(int $doctorId, array $sessions, string $now): void
+    {
+        foreach ($sessions as $session) {
+            $this->ensureSchedule($doctorId, $session[0], $session[1], $session[2], $now);
+        }
+    }
+
+    private function ensureSchedule(int $doctorId, string $day, string $start, string $end, string $now): int
+    {
+        $schedule = $this->db->table('jadwal_dokter')
+            ->where('id_dokter', $doctorId)
+            ->where('hari', $day)
+            ->where('jam_mulai', $start)
+            ->where('jam_selesai', $end)
+            ->get()
+            ->getRowArray();
+
+        if ($schedule) {
+            return (int) $schedule['id_jadwal'];
+        }
+
+        $this->db->table('jadwal_dokter')->insert([
+            'id_dokter'      => $doctorId,
+            'hari'           => $day,
+            'jam_mulai'      => $start,
+            'jam_selesai'    => $end,
+            'kuota_maksimal' => 20,
+            'is_active'      => 1,
+            'created_at'     => $now,
+            'updated_at'     => $now,
+        ]);
+
+        return (int) $this->db->insertID();
     }
 
     private function ensureUser(string $username, string $role, string $name, string $phone, string $now): int

@@ -199,11 +199,23 @@ body.nav-open .menu-toggle-bars::after { top: 0; transform: rotate(-45deg); }
 .page-intro p, .info-card p, .notification-card p { font-size: 14px; }
 .badge { font-size: 12px; padding: 6px 10px; }
 .cell-secondary { font-size: 12px; }
+.schedule-board { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.schedule-list { display: grid; gap: 8px; }
+.schedule-day { display: grid; align-content: start; gap: 8px; min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: #fbfefc; }
+.schedule-day.is-today { border-color: #b7e4cf; background: #f3fbf7; }
+.schedule-day h4 { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0; font-size: 13px; }
+.schedule-day h4 span { color: var(--green-800); font-size: 11px; font-weight: 700; }
+.schedule-slot { display: grid; gap: 8px; min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: white; }
+.schedule-slot strong { display: block; overflow-wrap: anywhere; font-size: 13px; line-height: 1.35; }
+.schedule-slot span { display: block; color: #71817e; font-size: 12px; line-height: 1.45; }
+.schedule-slot .button { width: 100%; }
+.schedule-empty { margin: 0; color: #97a49f; font-size: 12px; }
 
 @media (max-width: 1100px) {
     .content-area { padding-right: 24px; padding-left: 24px; }
     .topbar { padding-right: 20px; padding-left: 20px; }
     .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .schedule-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .split-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 900px) {
@@ -220,7 +232,7 @@ body.nav-open .menu-toggle-bars::after { top: 0; transform: rotate(-45deg); }
     .topbar-logout { display: inline-flex; min-height: 44px; }
     .content-area { padding: 18px 14px calc(28px + env(safe-area-inset-bottom)); }
     .page-intro, .panel-heading { flex-direction: column; align-items: stretch; }
-    .form-grid, .card-grid, .history-filters, .inline-form { grid-template-columns: 1fr; }
+    .form-grid, .card-grid, .history-filters, .inline-form, .schedule-board { grid-template-columns: 1fr; }
     .inline-form > .button, .history-filter-actions .button { width: 100%; }
     .form-actions { flex-direction: column-reverse; align-items: stretch; }
     .form-actions .button, .qr-actions .button { width: 100%; }

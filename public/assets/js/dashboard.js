@@ -227,6 +227,17 @@ function bindPageActions() {
                 }
             });
         });
+        document.querySelectorAll("[data-pick-schedule]").forEach(function (button) {
+            button.addEventListener("click", function () {
+                const select = document.getElementById("scheduleId");
+                const date = document.getElementById("visitDate");
+                if (select) select.value = button.dataset.pickSchedule;
+                if (date) date.value = nextPracticeDate(button.dataset.scheduleDay, date.value);
+                const form = document.getElementById("appointmentForm");
+                if (form) form.scrollIntoView({ block: "center" });
+                showToast("Jadwal dipilih. Periksa tanggal kunjungan, lalu daftar antrean.");
+            });
+        });
         handleForm("appointmentForm", async function (form) {
             const data = formObject(form);
             data.id_jadwal = Number(data.id_jadwal);
