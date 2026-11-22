@@ -56,6 +56,7 @@ function navIcon(page) {
         overview: '<path d="M4 10.5 12 4l8 6.5"/><path d="M6 10v10h12V10"/>',
         appointments: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3.5v4M16 3.5v4M4 10h16"/>',
         examinations: '<path d="M8 4h8v3a4 4 0 0 1-8 0z"/><path d="M8 5H6.5A2.5 2.5 0 0 0 4 7.5v10A2.5 2.5 0 0 0 6.5 20h11a2.5 2.5 0 0 0 2.5-2.5v-10A2.5 2.5 0 0 0 17.5 5H16"/>',
+        examHistory: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4.5L15 15"/>',
         prescriptions: '<rect x="7" y="3" width="10" height="18" rx="5"/><path d="M7 12h10"/>',
         notifications: '<path d="M6 16h12l-1.2-2.1A6 6 0 0 1 16 11V9a4 4 0 0 0-8 0v2a6 6 0 0 1-.8 2.9z"/><path d="M10 18a2 2 0 0 0 4 0"/>',
         profile: '<circle cx="12" cy="8" r="3"/><path d="M5.5 19a6.5 6.5 0 0 1 13 0"/>',
@@ -103,16 +104,16 @@ function appointmentTable(items, schedules, emptyText) {
         const scheduleLabel = (schedule.nama_dokter || "Jadwal #" + item.id_jadwal) + (schedule.nama_poli ? " • " + schedule.nama_poli : "");
         const today = new Date();
         const localDate = [today.getFullYear(), String(today.getMonth() + 1).padStart(2, "0"), String(today.getDate()).padStart(2, "0")].join("-");
-        const canCheckIn = item.tanggal_kunjungan === localDate && item.status_antrean === "Menunggu" && !item.waktu_check_in;
-        const checkIn = canCheckIn
-            ? '<button class="button button-primary button-small" data-check-in="' + escapeHtml(item.id_pendaftaran) + '" type="button">Check-in</button>'
-            : item.waktu_check_in ? '<span class="text-muted">Sudah check-in</span>' : '<span class="text-muted">—</span>';
+        const canChange = item.status_antrean === "Menunggu" && String(item.tanggal_kunjungan).slice(0, 10) >= localDate;
+        const edit = canChange
+            ? '<button class="button button-secondary button-small" data-edit-appointment="' + escapeHtml(item.id_pendaftaran) + '" data-visit-date="' + escapeHtml(String(item.tanggal_kunjungan || "").slice(0, 10)) + '" type="button">Ubah</button>'
+            : '<span class="text-muted">Tidak dapat diubah</span>';
         const estimate = item.estimasi_jam_masuk
             ? '<span class="cell-secondary">Perkiraan ' + formatDateTime(item.estimasi_jam_masuk) + '</span>'
             : "";
-        return '<tr><td><span class="cell-primary">' + formatDate(item.tanggal_kunjungan) + '</span><span class="cell-secondary">' + escapeHtml(scheduleLabel) + '</span>' + estimate + '</td><td>#' + escapeHtml(item.nomor_antrean) + '</td><td>' + statusBadge(item.status_antrean) + '</td><td>' + checkIn + '</td></tr>';
+        return '<tr><td><span class="cell-primary">' + formatDate(item.tanggal_kunjungan) + '</span><span class="cell-secondary">' + escapeHtml(scheduleLabel) + '</span>' + estimate + '</td><td>#' + escapeHtml(item.nomor_antrean) + '</td><td>' + statusBadge(item.status_antrean) + '</td><td>' + edit + '</td></tr>';
     });
-    return table(["Tanggal & dokter", "Nomor antrean", "Status", "Check-in"], rows, emptyText || "Belum ada pendaftaran antrean.");
+    return table(["Tanggal & dokter", "Nomor antrean", "Status", "Ubah"], rows, emptyText || "Belum ada pendaftaran antrean.");
 }
 
 function notificationList(items) {

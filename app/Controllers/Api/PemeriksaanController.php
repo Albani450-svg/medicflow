@@ -30,8 +30,10 @@ class PemeriksaanController extends BaseApiController
         }
 
         $data = $this->model
-            ->select('pemeriksaan.*, pendaftaran_poli.id_pasien')
+            ->select('pemeriksaan.*, pendaftaran_poli.id_pasien, pendaftaran_poli.tanggal_kunjungan, dokter.nama_dokter, poliklinik.nama_poli')
             ->join('pendaftaran_poli', 'pendaftaran_poli.id_pendaftaran = pemeriksaan.id_pendaftaran')
+            ->join('dokter', 'dokter.id_dokter = pemeriksaan.id_dokter', 'left')
+            ->join('poliklinik', 'poliklinik.id_poli = dokter.id_poli', 'left')
             ->where('pendaftaran_poli.id_pasien', $patientId)
             ->orderBy('pemeriksaan.waktu_mulai', 'DESC')
             ->findAll();
@@ -50,12 +52,36 @@ class PemeriksaanController extends BaseApiController
         }
 
         $data = $this->model
-            ->select('pemeriksaan.*, pendaftaran_poli.id_pasien, pasien.nama_lengkap AS nama_pasien')
+            ->select('pemeriksaan.*, pendaftaran_poli.id_pasien, pendaftaran_poli.tanggal_kunjungan, pendaftaran_poli.nomor_antrean, pasien.nama_lengkap AS nama_pasien, poliklinik.nama_poli')
             ->join('pendaftaran_poli', 'pendaftaran_poli.id_pendaftaran = pemeriksaan.id_pendaftaran')
             ->join('pasien', 'pasien.id_pasien = pendaftaran_poli.id_pasien')
+            ->join('dokter', 'dokter.id_dokter = pemeriksaan.id_dokter', 'left')
+            ->join('poliklinik', 'poliklinik.id_poli = dokter.id_poli', 'left')
             ->where('pemeriksaan.id_dokter', $doctorId)
             ->orderBy('pemeriksaan.waktu_mulai', 'DESC')
             ->findAll();
+        $appointmentIds = array_values(array_unique(array_map(static fn (array $row): int => (int) $row['id_pendaftaran'], $data)));
+        $recipes = [];
+
+        if ($appointmentIds !== []) {
+            $lines = db_connect()->table('detail_resep')
+                ->select('resep.id_pendaftaran, resep.status_resep, obat.nama_obat, obat.satuan, detail_resep.jumlah, detail_resep.dosis_aturan_pakai')
+                ->join('resep', 'resep.id_resep = detail_resep.id_resep')
+                ->join('obat', 'obat.id_obat = detail_resep.id_obat')
+                ->whereIn('resep.id_pendaftaran', $appointmentIds)
+                ->orderBy('detail_resep.id_detail', 'ASC')
+                ->get()
+                ->getResultArray();
+
+            foreach ($lines as $line) {
+                $recipes[(string) $line['id_pendaftaran']][] = $line;
+            }
+        }
+
+        foreach ($data as &$row) {
+            $row['resep'] = $recipes[(string) $row['id_pendaftaran']] ?? [];
+        }
+        unset($row);
 
         return $this->response->setJSON(['status' => true, 'data' => $data]);
     }
@@ -94,9 +120,9 @@ class PemeriksaanController extends BaseApiController
             ]);
         }
 
-        if (!in_array($appointment['status_antrean'], ['Dipanggil', 'Masuk Ruangan'], true)) {
+        if (!in_array($appointment['status_antrean'], ['Siap Diperiksa', 'Dipanggil', 'Masuk Ruangan'], true)) {
             return $this->response->setStatusCode(409)->setJSON([
-                'status' => false, 'message' => 'Pasien harus dipanggil atau masuk ruangan sebelum diperiksa',
+                'status' => false, 'message' => 'Pasien harus siap diperiksa, dipanggil, atau masuk ruangan sebelum diperiksa',
             ]);
         }
 
@@ -219,7 +245,7 @@ class PemeriksaanController extends BaseApiController
             ]);
         }
 
-        if (!in_array($lockedAppointment['status_antrean'], ['Dipanggil', 'Masuk Ruangan'], true)) {
+        if (!in_array($lockedAppointment['status_antrean'], ['Siap Diperiksa', 'Dipanggil', 'Masuk Ruangan'], true)) {
             $db->transRollback();
 
             return $this->response->setStatusCode(409)->setJSON([

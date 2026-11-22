@@ -18,11 +18,13 @@ const roleMenus = {
         ["queue", "▦", "Daftar pasien"],
         ["queueHistory", "◷", "Riwayat antrean"],
         ["schedules", "◷", "Jadwal praktik"],
-        ["examinations", "♡", "Pemeriksaan"]
+        ["examinations", "♡", "Pemeriksaan"],
+        ["examHistory", "◷", "Riwayat pemeriksaan"]
     ],
     perawat: [
         ["overview", "⌂", "Ringkasan"],
-        ["triage", "♡", "Pemeriksaan awal"]
+        ["triage", "♡", "Pemeriksaan awal"],
+        ["queueHistory", "◷", "Riwayat pemeriksaan"]
     ],
     farmasi: [
         ["overview", "⌂", "Ringkasan"],
@@ -33,7 +35,9 @@ const roleMenus = {
     ],
     admin: [
         ["overview", "⌂", "Ringkasan"],
-        ["staff", "♙", "Akun staf"],
+        ["staff", "♙", "Akun"],
+        ["schedules", "◷", "Jadwal"],
+        ["stock", "▥", "Stok obat"],
         ["resources", "▦", "Kelola data"],
         ["reports", "☰", "Laporan"]
     ]
@@ -109,7 +113,7 @@ async function request(path, options) {
 }
 
 async function requestImage(path) {
-    const headers = new Headers({ Accept: "image/png" });
+    const headers = new Headers({ Accept: "image/png, image/svg+xml" });
     const token = sessionStorage.getItem(tokenKey);
     if (token) headers.set("Authorization", "Bearer " + token);
 
@@ -215,7 +219,7 @@ const state = {
     page: "overview",
     data: {},
     historyFilters: {
-        appointments: { status: "semua", checkin: "semua", doctor: "semua", from: "", to: "", query: "" },
+        appointments: { status: "semua", doctor: "semua", from: "", to: "", query: "" },
         examinations: { from: "", to: "", query: "" }
     }
 };

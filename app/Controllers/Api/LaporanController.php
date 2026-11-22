@@ -4,6 +4,7 @@ namespace App\Controllers\Api;
 
 use App\Libraries\AuditLogger;
 use App\Libraries\ClinicReport;
+use App\Models\PasienModel;
 use DateTimeImmutable;
 
 class LaporanController extends BaseApiController
@@ -18,7 +19,50 @@ class LaporanController extends BaseApiController
         return $this->download('pengeluaran-obat');
     }
 
+    public function patientExaminations()
+    {
+        $patientId = $this->linkedProfileId(new PasienModel(), 'id_pasien');
+
+        if ($patientId === null) {
+            return $this->profileNotFound();
+        }
+
+        $range = $this->reportRange();
+        if ($range instanceof \CodeIgniter\HTTP\ResponseInterface) {
+            return $range;
+        }
+
+        [$format, $from, $to] = $range;
+        $user = $this->currentUser();
+        $report = (new ClinicReport())->patientExaminations(
+            $patientId,
+            $format,
+            $from,
+            $to,
+            (string) ($user['nama_lengkap'] ?? $user['username'])
+        );
+
+        return $this->sendReport($report, (int) $user['id_user']);
+    }
+
     private function download(string $kind)
+    {
+        $range = $this->reportRange();
+        if ($range instanceof \CodeIgniter\HTTP\ResponseInterface) {
+            return $range;
+        }
+
+        [$format, $from, $to] = $range;
+        $user = $this->currentUser();
+        $report = (new ClinicReport())->render($kind, $format, $from, $to, (string) ($user['nama_lengkap'] ?? $user['username']));
+
+        return $this->sendReport($report, (int) $user['id_user']);
+    }
+
+    /**
+     * @return array{0:string,1:string,2:string}|\CodeIgniter\HTTP\ResponseInterface
+     */
+    private function reportRange()
     {
         $format = strtolower((string) $this->request->getGet('format'));
         $from = (string) $this->request->getGet('dari');
@@ -40,17 +84,13 @@ class LaporanController extends BaseApiController
             ]);
         }
 
-        $user = $this->currentUser();
-        $report = (new ClinicReport())->render($kind, $format, $from, $to, (string) ($user['nama_lengkap'] ?? $user['username']));
+        return [$format, $from, $to];
+    }
 
+    private function sendReport(array $report, int $userId)
+    {
         try {
-            AuditLogger::record(
-                (int) $user['id_user'],
-                'Unduh laporan',
-                'laporan',
-                null,
-                $report['filename']
-            );
+            AuditLogger::record($userId, 'Unduh laporan', 'laporan', null, $report['filename']);
         } catch (\Throwable $exception) {
             log_message('error', $exception->getMessage());
         }

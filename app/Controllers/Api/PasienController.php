@@ -222,7 +222,7 @@ class PasienController extends BaseApiController
         $sql = 'SELECT pendaftaran_poli.id_pasien FROM pendaftaran_poli ' .
             'JOIN jadwal_dokter ON jadwal_dokter.id_jadwal = pendaftaran_poli.id_jadwal ' .
             'WHERE pendaftaran_poli.id_pendaftaran = ? AND jadwal_dokter.id_dokter = ? ' .
-            "AND pendaftaran_poli.status_antrean IN ('Dipanggil', 'Masuk Ruangan')" .
+            "AND pendaftaran_poli.status_antrean IN ('Siap Diperiksa', 'Dipanggil', 'Masuk Ruangan')" .
             ($lock ? ' FOR UPDATE' : '');
 
         $appointment = db_connect()->query($sql, [$appointmentId, $doctorId])->getRowArray();

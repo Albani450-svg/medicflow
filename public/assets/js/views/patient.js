@@ -26,26 +26,27 @@ function renderPatient() {
                 ["Obat yang sedang dipakai", clinicalHistory.obat_aktif]
             ]) + '<p class="text-muted">Alergi obat dicatat saat pemeriksaan. Alergi lain dan obat yang sedang dipakai diubah oleh dokter.</p>', "Ringkas, tanpa perlu membuka riwayat") +
             panel("Notifikasi perangkat", deviceNotificationSettings(), "Tampilkan pemberitahuan di perangkat ini") +
-            panel("Praktik hari ini", todayScheduleList(schedules), "Jadwal satu bulan ada pada tombol di menu Antrean & jadwal") +
+            panel("Praktik hari ini", todayScheduleList(schedules), "Jadwal per hari ada pada tombol di menu Antrean & jadwal") +
             panel("Pendaftaran terbaru", appointmentTable(appointments.slice(0, 5), schedules), "Status antrean kunjungan Anda") +
             panel("Notifikasi terbaru", notificationList(notifications.slice(0, 4)), "Informasi dari layanan MedicFlow");
     }
     if (state.page === "appointments") {
-        return '<div class="page-intro"><div><h2>Jadwalkan kunjungan</h2><p>Tekan tombol jadwal, pilih sesi dalam satu bulan ke depan, lalu daftar. Satu hari boleh berisi lebih dari satu dokter.</p></div></div>' +
+        return '<div class="page-intro"><div><h2>Jadwalkan kunjungan</h2><p>Pilih hari praktik dari Senin sampai Minggu, isi tanggal kunjungan sendiri, lalu daftar. Satu hari boleh berisi lebih dari satu dokter.</p></div></div>' +
             panel("Daftar antrean baru", '<form id="appointmentForm" class="inline-form">' +
-                '<div class="schedule-picker"><span class="field-label" id="schedulePickerLabel">Dokter dan tanggal kunjungan</span>' +
-                '<button class="button button-secondary schedule-picker-button" id="openSchedulePicker" type="button" aria-haspopup="dialog" aria-controls="scheduleMonthDialog">Pilih jadwal dokter</button>' +
-                '<p class="schedule-selection" id="scheduleSelection">Belum ada jadwal yang dipilih.</p>' +
+                '<div class="schedule-picker"><span class="field-label" id="schedulePickerLabel">Dokter dan hari praktik</span>' +
+                '<button class="button button-secondary button-small schedule-picker-button" id="openSchedulePicker" type="button" aria-haspopup="dialog" aria-controls="scheduleMonthDialog">Pilih jadwal</button>' +
+                '<div class="schedule-selection" id="scheduleSelection"><p class="schedule-selection-empty">Belum ada jadwal yang dipilih.</p></div>' +
                 '<input type="hidden" id="scheduleId" name="id_jadwal">' +
-                '<input type="hidden" id="visitDate" name="tanggal_kunjungan"></div>' +
+                '<input type="hidden" id="scheduleDay">' +
+                '<div class="schedule-date-field"><label class="field-label" for="visitDate">Tanggal kunjungan</label><input class="field" id="visitDate" name="tanggal_kunjungan" type="date" min="' + localDateValue(new Date()) + '" required><p class="field-hint" id="visitDateHint">Isi tanggal sendiri. Tanggal harus jatuh pada hari praktik yang dipilih.</p></div></div>' +
                 '<div><label class="field-label" for="visitNote">Catatan (opsional)</label><input class="field" id="visitNote" name="catatan_pasien" maxlength="500" placeholder="Keluhan singkat"></div>' +
                 '<button class="button button-primary" type="submit">Daftar antrean</button></form>' +
-                monthScheduleDialog(schedules), "Pilih satu sesi praktik dari jadwal satu bulan") +
-            panel("Riwayat pendaftaran", appointmentHistoryPanel(appointments, schedules), "Antrean yang pernah Anda daftarkan");
+                weekdayScheduleDialog(schedules), "Pilih hari praktik, lalu isi tanggal kunjungan") +
+            panel("Riwayat pendaftaran", appointmentHistoryPanel(appointments, schedules), "Pendaftaran yang masih menunggu dapat diubah dokter atau tanggalnya");
     }
     if (state.page === "examinations") {
-        return '<div class="page-intro"><div><h2>Riwayat pemeriksaan</h2><p>Catatan pemeriksaan yang telah dilakukan dokter.</p></div></div>' +
-            panel("Pemeriksaan Anda", examinationHistoryPanel(exams));
+        return '<div class="page-intro"><div><h2>Riwayat pemeriksaan</h2><p>Setiap catatan menampilkan dokter, poliklinik, keluhan, diagnosis, tindakan, dan tanda vital. Laporan dapat diunduh sebagai PDF atau Excel.</p></div></div>' +
+            panel("Pemeriksaan Anda", examinationHistoryPanel(exams), "Unduhan mengikuti filter tanggal. Jika tanggal kosong, laporan mencakup 366 hari terakhir.");
     }
     if (state.page === "prescriptions") {
         return '<div class="page-intro"><div><h2>Resep obat</h2><p>Pilih cara penebusan saat resep baru diterbitkan oleh dokter.</p></div></div>' +
@@ -89,35 +90,10 @@ function localDateValue(date) {
     return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
 }
 
-const scheduleMonthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-
-function formatScheduleDate(date) {
-    return date.getDate() + " " + scheduleMonthNames[date.getMonth()] + " " + date.getFullYear();
-}
-
-function addMonthsClamped(date, months) {
-    const target = new Date(date.getFullYear(), date.getMonth() + months, 1);
-    const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
-    target.setDate(Math.min(date.getDate(), lastDay));
-    target.setHours(0, 0, 0, 0);
-    return target;
-}
-
-function nextPracticeDate(dayName, currentValue) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (currentValue && /^\d{4}-\d{2}-\d{2}$/.test(currentValue)) {
-        const current = new Date(currentValue + "T00:00:00");
-        if (!Number.isNaN(current.getTime()) && current >= today && localWeekdayName(current) === dayName) {
-            return currentValue;
-        }
-    }
-    const target = practiceDays.indexOf(dayName);
-    const todayIndex = practiceDays.indexOf(localWeekdayName(today));
-    const delta = target < 0 || todayIndex < 0 ? 0 : (target - todayIndex + 7) % 7;
-    const next = new Date(today);
-    next.setDate(today.getDate() + delta);
-    return localDateValue(next);
+function visitDateMatchesDay(dateValue, dayName) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateValue || "")) || !dayName) return false;
+    const parsed = new Date(dateValue + "T00:00:00");
+    return !Number.isNaN(parsed.getTime()) && localWeekdayName(parsed) === dayName;
 }
 
 function scheduleTimeLabel(item) {
@@ -134,44 +110,47 @@ function sortedSchedules(schedules) {
     });
 }
 
-function scheduleSlotCard(item, pickable, dateValue) {
+function scheduleSlotCard(item, pickable) {
     const detail = (item.nama_poli || "Poliklinik") + (item.spesialisasi ? " • " + item.spesialisasi : "");
-    const when = dateValue
-        ? localWeekdayName(new Date(dateValue + "T00:00:00")) + ", " + formatScheduleDate(new Date(dateValue + "T00:00:00"))
-        : item.hari;
-    const label = [item.nama_dokter || "Dokter", detail, when, scheduleTimeLabel(item), "Kuota " + item.kuota_maksimal].join(" • ");
+    const when = item.hari;
+    const hours = scheduleTimeLabel(item) + " • Kuota " + item.kuota_maksimal;
+    const label = [item.nama_dokter || "Dokter", detail, when, hours].join(" • ");
     const action = pickable
-        ? '<button class="button button-secondary button-small" type="button" data-pick-schedule="' + escapeHtml(item.id_jadwal) + '" data-schedule-day="' + escapeHtml(item.hari) + '"' + (dateValue ? ' data-schedule-date="' + escapeHtml(dateValue) + '"' : "") + ' data-schedule-label="' + escapeHtml(label) + '">Pilih</button>'
+        ? '<button class="button button-secondary button-small" type="button" data-pick-schedule="' + escapeHtml(item.id_jadwal) + '" data-schedule-day="' + escapeHtml(item.hari) + '" data-doctor="' + escapeHtml(item.nama_dokter || "Dokter") + '" data-clinic="' + escapeHtml(detail) + '" data-when="' + escapeHtml(when) + '" data-hours="' + escapeHtml(hours) + '" data-schedule-label="' + escapeHtml(label) + '">Pilih</button>'
         : "";
     return '<article class="schedule-slot"><div><strong>' + escapeHtml(item.nama_dokter || "Dokter") + '</strong><span>' + escapeHtml(detail) + '</span><span>' + escapeHtml(scheduleTimeLabel(item)) + " • Kuota " + escapeHtml(item.kuota_maksimal) + '</span></div>' + action + '</article>';
 }
 
-function monthScheduleDialog(schedules) {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    const end = addMonthsClamped(start, 1);
-    const todayValue = localDateValue(start);
-    const days = [];
-    let sessions = 0;
-    const cursor = new Date(start);
-    while (cursor < end) {
-        const dayName = localWeekdayName(cursor);
-        const dateValue = localDateValue(cursor);
-        const slots = sortedSchedules(schedules).filter(function (item) { return item.hari === dayName; });
-        sessions += slots.length;
+function weekdayScheduleDialog(schedules) {
+    const ordered = sortedSchedules(schedules);
+    const sections = practiceDays.map(function (dayName) {
+        const slots = ordered.filter(function (item) { return item.hari === dayName; });
         const body = slots.length
-            ? slots.map(function (item) { return scheduleSlotCard(item, true, dateValue); }).join("")
+            ? slots.map(function (item) { return scheduleSlotCard(item, true); }).join("")
             : '<p class="schedule-empty">Tidak ada praktik</p>';
-        days.push('<section class="schedule-month-day' + (dateValue === todayValue ? " is-today" : "") + '"><h4>' + escapeHtml(dayName + ", " + formatScheduleDate(cursor)) + (dateValue === todayValue ? "<span>Hari ini</span>" : "") + "</h4>" + body + "</section>");
-        cursor.setDate(cursor.getDate() + 1);
-    }
-    const lastShown = new Date(end);
-    lastShown.setDate(lastShown.getDate() - 1);
-    const range = formatScheduleDate(start) + " – " + formatScheduleDate(lastShown);
+        return '<section class="schedule-month-day"><h4>' + escapeHtml(dayName) + "</h4>" + body + "</section>";
+    });
+    const note = "Senin sampai Minggu • " + ordered.length + " sesi praktik. Tanggal kunjungan diisi sendiri.";
     const body = schedules.length
-        ? days.join("")
+        ? sections.join("")
         : '<div class="empty-state">Belum ada jadwal dokter yang aktif.</div>';
-    return '<dialog class="schedule-dialog" id="scheduleMonthDialog" aria-labelledby="scheduleMonthTitle"><div class="schedule-dialog-head"><div><h3 id="scheduleMonthTitle">Jadwal dokter</h3><p>' + escapeHtml(range + " • " + sessions + " sesi praktik") + '</p></div><button class="button button-secondary button-small" type="button" data-close-schedule>Tutup</button></div><div class="schedule-month">' + body + "</div></dialog>";
+    return '<dialog class="schedule-dialog" id="scheduleMonthDialog" aria-labelledby="scheduleMonthTitle"><div class="schedule-dialog-head"><div><h3 id="scheduleMonthTitle">Jadwal dokter</h3><p id="scheduleDialogNote" data-default-note="' + escapeHtml(note) + '">' + escapeHtml(note) + '</p></div><button class="button button-secondary button-small" type="button" data-close-schedule>Tutup</button></div><div class="schedule-visit-date" id="scheduleVisitDateWrap" hidden><label class="field-label" for="scheduleVisitDate">Tanggal kunjungan</label><input class="field" id="scheduleVisitDate" type="date"><p class="field-hint">Isi tanggal yang jatuh pada hari praktik yang dipilih.</p></div><div class="schedule-month">' + body + "</div></dialog>";
+}
+
+function updateVisitDateHint(dayName) {
+    const hint = document.getElementById("visitDateHint");
+    if (!hint) return;
+    hint.textContent = dayName
+        ? "Isi tanggal yang jatuh pada hari " + dayName + "."
+        : "Isi tanggal sendiri. Tanggal harus jatuh pada hari praktik yang dipilih.";
+}
+
+function showScheduleChoice(choice) {
+    const summary = document.getElementById("scheduleSelection");
+    const opener = document.getElementById("openSchedulePicker");
+    if (opener) opener.textContent = "Ubah jadwal";
+    if (!summary) return;
+    summary.innerHTML = '<div class="schedule-choice"><strong>' + escapeHtml(choice.doctor || "Dokter") + '</strong><span>' + escapeHtml(choice.clinic || "") + '</span><span>' + escapeHtml((choice.when || "") + " • " + (choice.hours || "")) + '</span></div>';
 }
 
 function todayScheduleList(schedules) {
@@ -182,7 +161,7 @@ function todayScheduleList(schedules) {
 }
 
 function defaultAppointmentFilters() {
-    return { status: "semua", checkin: "semua", doctor: "semua", from: "", to: "", query: "" };
+    return { status: "semua", doctor: "semua", from: "", to: "", query: "" };
 }
 
 function defaultExaminationFilters() {
@@ -242,8 +221,6 @@ function filterAppointments(appointments, schedules, filters) {
         const schedule = scheduleForAppointment(item, schedules);
         const doctor = appointmentDoctorLabel(item, schedules);
         if (filters.status !== "semua" && item.status_antrean !== filters.status) return false;
-        if (filters.checkin === "sudah" && !item.waktu_check_in) return false;
-        if (filters.checkin === "belum" && item.waktu_check_in) return false;
         if (filters.doctor !== "semua" && doctor !== filters.doctor) return false;
         if (!withinDateRange(item.tanggal_kunjungan, filters.from, filters.to)) return false;
         return includesQuery(filters.query, [
@@ -256,7 +233,7 @@ function filterAppointments(appointments, schedules, filters) {
 function filterExaminations(exams, filters) {
     return exams.filter(function (item) {
         if (!withinDateRange(item.waktu_mulai, filters.from, filters.to)) return false;
-        return includesQuery(filters.query, [item.keluhan, item.diagnosis, item.tindakan, item.catatan_dokter, item.alergi_obat, item.laju_respirasi, item.waktu_mulai]);
+        return includesQuery(filters.query, [item.keluhan, item.diagnosis, item.tindakan, item.catatan_dokter, item.alergi_obat, item.laju_respirasi, item.waktu_mulai, item.nama_dokter, item.nama_poli, item.tekanan_darah]);
     });
 }
 
@@ -295,10 +272,45 @@ function examinationEmptyText(exams, filtered, filters) {
     return "Belum ada riwayat pemeriksaan.";
 }
 
-function examinationRows(exams) {
-    return exams.map(function (item) {
-        return '<tr><td>' + formatDateTime(item.waktu_mulai) + '</td><td>' + escapeHtml(item.keluhan) + '</td><td>' + escapeHtml(item.diagnosis) + '</td><td>' + escapeHtml(item.tindakan) + '</td><td>' + escapeHtml(item.laju_respirasi || "—") + '</td><td>' + escapeHtml(item.alergi_obat || "—") + '</td></tr>';
-    });
+function examinationVitals(item) {
+    const parts = [];
+    if (item.tekanan_darah) parts.push("TD " + item.tekanan_darah);
+    if (item.suhu_tubuh) parts.push("suhu " + item.suhu_tubuh + " °C");
+    if (item.laju_respirasi) parts.push("respirasi " + item.laju_respirasi + " x/menit");
+    if (item.berat_badan) parts.push("berat " + item.berat_badan + " kg");
+    if (item.tinggi_badan) parts.push("tinggi " + item.tinggi_badan + " cm");
+    return parts.length ? parts.join(", ") : "—";
+}
+
+function examinationCards(exams) {
+    if (!exams.length) return "";
+    return '<div class="stack">' + exams.map(function (item) {
+        const doctor = (item.nama_dokter || "Dokter") + (item.nama_poli ? " • " + item.nama_poli : "");
+        const finished = item.waktu_selesai ? " – " + formatDateTime(item.waktu_selesai) : "";
+        return '<article class="info-card"><h4>' + escapeHtml(doctor) + '</h4>' +
+            '<p>' + formatDateTime(item.waktu_mulai) + finished + '</p>' +
+            '<p><strong>Keluhan:</strong> ' + escapeHtml(item.keluhan || "—") + '</p>' +
+            '<p><strong>Diagnosis:</strong> ' + escapeHtml(item.diagnosis || "—") + '</p>' +
+            '<p><strong>Tindakan:</strong> ' + escapeHtml(item.tindakan || "—") + '</p>' +
+            '<p><strong>Tanda vital:</strong> ' + escapeHtml(examinationVitals(item)) + '</p>' +
+            '<p><strong>Alergi obat:</strong> ' + escapeHtml(item.alergi_obat || "—") + '</p>' +
+            (item.catatan_dokter ? '<p><strong>Catatan dokter:</strong> ' + escapeHtml(item.catatan_dokter) + '</p>' : '') +
+            '</article>';
+    }).join("") + '</div>';
+}
+
+function examinationReportRange(filters) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const to = filters.to || localDateValue(today);
+    let from = filters.from;
+    if (!from) {
+        const start = new Date(today);
+        start.setDate(start.getDate() - 366);
+        from = localDateValue(start);
+    }
+    if (from > to) throw new Error("Tanggal awal lebih besar dari tanggal akhir.");
+    return { from: from, to: to };
 }
 
 function appointmentHistoryPanel(appointments, schedules) {
@@ -314,7 +326,6 @@ function appointmentHistoryPanel(appointments, schedules) {
     doctors.sort(function (left, right) { return left.localeCompare(right, "id"); });
     return '<form class="history-filters" id="appointmentHistoryFilter">' +
         filterField("Status", filterSelect("appointmentStatusFilter", "status", appointmentStatusOptions(appointments), filters.status)) +
-        filterField("Check-in", filterSelect("appointmentCheckinFilter", "checkin", [["semua", "Semua"], ["sudah", "Sudah check-in"], ["belum", "Belum check-in"]], filters.checkin)) +
         filterField("Dokter", filterSelect("appointmentDoctorFilter", "doctor", [["semua", "Semua dokter"]].concat(doctors.map(function (name) { return [name, name]; })), filters.doctor)) +
         filterField("Dari tanggal", '<input class="field" id="appointmentFromFilter" name="from" type="date" value="' + escapeHtml(filters.from) + '">') +
         filterField("Sampai tanggal", '<input class="field" id="appointmentToFilter" name="to" type="date" value="' + escapeHtml(filters.to) + '">') +
@@ -329,13 +340,14 @@ function examinationHistoryPanel(exams) {
     const filters = state.historyFilters.examinations;
     const invalid = invalidDateRange(filters);
     const filtered = invalid ? [] : filterExaminations(exams, filters);
-    return '<form class="history-filters" id="examinationHistoryFilter">' +
+    return '<div class="report-actions"><button class="button button-primary" type="button" data-download-exam="pdf">Unduh PDF</button><button class="button button-secondary" type="button" data-download-exam="xls">Unduh Excel</button></div>' +
+        '<form class="history-filters" id="examinationHistoryFilter">' +
         filterField("Dari tanggal", '<input class="field" id="examinationFromFilter" name="from" type="date" value="' + escapeHtml(filters.from) + '">') +
         filterField("Sampai tanggal", '<input class="field" id="examinationToFilter" name="to" type="date" value="' + escapeHtml(filters.to) + '">') +
-        filterField("Cari", '<input class="field" id="examinationQueryFilter" name="query" type="search" maxlength="100" placeholder="Keluhan, diagnosis, atau tindakan" value="' + escapeHtml(filters.query) + '">') +
+        filterField("Cari", '<input class="field" id="examinationQueryFilter" name="query" type="search" maxlength="100" placeholder="Dokter, keluhan, atau diagnosis" value="' + escapeHtml(filters.query) + '">') +
         '<div class="history-filter-actions"><button class="button button-secondary" id="examinationFilterReset" type="button">Atur ulang</button></div></form>' +
         '<p class="filter-summary" id="examinationFilterSummary" aria-live="polite">' + escapeHtml(examinationFilterSummary(exams, filtered, filters)) + '</p>' +
-        '<div id="examinationHistoryResults">' + table(["Waktu", "Keluhan", "Diagnosis", "Tindakan", "Respirasi", "Alergi obat"], examinationRows(filtered), examinationEmptyText(exams, filtered, filters)) + '</div>';
+        '<div id="examinationHistoryResults">' + (filtered.length ? examinationCards(filtered) : '<div class="empty-state">' + escapeHtml(examinationEmptyText(exams, filtered, filters)) + '</div>') + '</div>';
 }
 
 function readNamedFilters(form, defaults) {
@@ -366,7 +378,7 @@ function renderAppointmentHistoryResults() {
     const filtered = invalid ? [] : filterAppointments(appointments, schedules, filters);
     summary.textContent = appointmentFilterSummary(appointments, filtered, filters);
     results.innerHTML = appointmentTable(filtered, schedules, appointmentEmptyText(appointments, filtered, filters));
-    if (typeof bindCheckInButtons === "function") bindCheckInButtons(results);
+    if (typeof bindAppointmentEditButtons === "function") bindAppointmentEditButtons(results);
 }
 
 function renderExaminationHistoryResults() {
@@ -379,7 +391,7 @@ function renderExaminationHistoryResults() {
     const invalid = invalidDateRange(filters);
     const filtered = invalid ? [] : filterExaminations(exams, filters);
     summary.textContent = examinationFilterSummary(exams, filtered, filters);
-    results.innerHTML = table(["Waktu", "Keluhan", "Diagnosis", "Tindakan", "Respirasi", "Alergi obat"], examinationRows(filtered), examinationEmptyText(exams, filtered, filters));
+    results.innerHTML = filtered.length ? examinationCards(filtered) : '<div class="empty-state">' + escapeHtml(examinationEmptyText(exams, filtered, filters)) + '</div>';
 }
 
 function bindPatientHistoryFilters() {
@@ -411,6 +423,24 @@ function bindPatientHistoryFilters() {
             renderExaminationHistoryResults();
         });
     }
+    document.querySelectorAll("[data-download-exam]").forEach(function (button) {
+        button.addEventListener("click", async function () {
+            ensureHistoryFilters();
+            button.disabled = true;
+            try {
+                const range = examinationReportRange(state.historyFilters.examinations);
+                await downloadFile(
+                    "pasien/laporan/riwayat-pemeriksaan?dari=" + encodeURIComponent(range.from) + "&sampai=" + encodeURIComponent(range.to) + "&format=" + encodeURIComponent(button.dataset.downloadExam),
+                    "riwayat-pemeriksaan." + button.dataset.downloadExam
+                );
+                showToast("Laporan riwayat pemeriksaan berhasil diunduh.", false);
+            } catch (error) {
+                showToast(error.message, true);
+            } finally {
+                button.disabled = false;
+            }
+        });
+    });
 }
 
 function deviceNotificationSettings() {

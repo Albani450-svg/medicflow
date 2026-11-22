@@ -29,6 +29,77 @@ class ClinicReport
         ];
     }
 
+    public function patientExaminations(int $patientId, string $format, string $from, string $to, string $printedBy): array
+    {
+        $rows = db_connect()->query(
+            'SELECT pemeriksaan.waktu_mulai, pemeriksaan.waktu_selesai, pemeriksaan.keluhan, pemeriksaan.diagnosis, ' .
+            'pemeriksaan.tindakan, pemeriksaan.catatan_dokter, pemeriksaan.tekanan_darah, pemeriksaan.suhu_tubuh, ' .
+            'pemeriksaan.berat_badan, pemeriksaan.tinggi_badan, pemeriksaan.laju_respirasi, pemeriksaan.alergi_obat, ' .
+            'dokter.nama_dokter, poliklinik.nama_poli ' .
+            'FROM pemeriksaan ' .
+            'JOIN pendaftaran_poli ON pendaftaran_poli.id_pendaftaran = pemeriksaan.id_pendaftaran ' .
+            'LEFT JOIN dokter ON dokter.id_dokter = pemeriksaan.id_dokter ' .
+            'LEFT JOIN poliklinik ON poliklinik.id_poli = dokter.id_poli ' .
+            'WHERE pendaftaran_poli.id_pasien = ? AND pemeriksaan.waktu_mulai >= ? AND pemeriksaan.waktu_mulai <= ? ' .
+            'ORDER BY pemeriksaan.waktu_mulai ASC ' .
+            'LIMIT ' . (self::MAX_ROWS + 1),
+            [$patientId, $from . ' 00:00:00', $to . ' 23:59:59']
+        )->getResultArray();
+        $truncated = count($rows) > self::MAX_ROWS;
+        $rows = array_slice($rows, 0, self::MAX_ROWS);
+        $table = [];
+        $byDoctor = [];
+
+        foreach ($rows as $index => $row) {
+            $doctor = trim((string) ($row['nama_dokter'] ?: 'Dokter'));
+            $clinic = trim((string) ($row['nama_poli'] ?? ''));
+            $byDoctor[$doctor] = ($byDoctor[$doctor] ?? 0) + 1;
+            $table[] = [
+                (string) ($index + 1),
+                $this->dateTime((string) $row['waktu_mulai']),
+                $clinic !== '' ? $doctor . ' • ' . $clinic : $doctor,
+                $this->text($row['keluhan']),
+                $this->text($row['diagnosis']),
+                $this->text($row['tindakan']),
+                $this->vitals($row),
+                $this->text($row['alergi_obat']),
+                $this->text($row['catatan_dokter']),
+            ];
+        }
+
+        ksort($byDoctor);
+        $summary = [['Total pemeriksaan', (string) count($rows)]];
+        foreach ($byDoctor as $doctor => $count) {
+            $summary[] = [$doctor, (string) $count];
+        }
+        if ($truncated) {
+            $summary[] = ['Catatan', 'Hanya ' . self::MAX_ROWS . ' pemeriksaan pertama yang dimuat'];
+        }
+
+        $document = $this->document(
+            'Riwayat Pemeriksaan',
+            $from,
+            $to,
+            $printedBy,
+            ['No', 'Waktu', 'Dokter', 'Keluhan', 'Diagnosis', 'Tindakan', 'Tanda vital', 'Alergi obat', 'Catatan'],
+            [24, 78, 110, 96, 96, 90, 112, 80, 90],
+            $table,
+            'Tidak ada pemeriksaan pada periode ini.',
+            $summary,
+            ['Dokter', 'Jumlah'],
+            [220, 80],
+            []
+        );
+        $document['note'] = 'Laporan hanya memuat pemeriksaan milik pasien yang mengunduhnya.';
+        $filename = 'riwayat-pemeriksaan_' . $from . '_' . $to . '.' . $format;
+
+        if ($format === 'pdf') {
+            return ['filename' => $filename, 'mime' => 'application/pdf', 'body' => $this->pdf($document)];
+        }
+
+        return ['filename' => $filename, 'mime' => 'application/vnd.ms-excel', 'body' => $this->excel($document)];
+    }
+
     private function visits(string $from, string $to, string $printedBy): array
     {
         $rows = db_connect()->query(
@@ -395,6 +466,35 @@ class ClinicReport
     private function xml(string $value): string
     {
         return htmlspecialchars($value, ENT_XML1 | ENT_QUOTES, 'UTF-8');
+    }
+
+    private function text($value): string
+    {
+        $text = trim((string) $value);
+
+        return $text === '' ? '-' : $text;
+    }
+
+    private function vitals(array $row): string
+    {
+        $parts = [];
+        if ($row['tekanan_darah'] !== null && $row['tekanan_darah'] !== '') {
+            $parts[] = 'TD ' . $row['tekanan_darah'];
+        }
+        if ($row['suhu_tubuh'] !== null && $row['suhu_tubuh'] !== '') {
+            $parts[] = 'suhu ' . $row['suhu_tubuh'] . ' C';
+        }
+        if ($row['laju_respirasi'] !== null && $row['laju_respirasi'] !== '') {
+            $parts[] = 'RR ' . $row['laju_respirasi'];
+        }
+        if ($row['berat_badan'] !== null && $row['berat_badan'] !== '') {
+            $parts[] = 'BB ' . $row['berat_badan'] . ' kg';
+        }
+        if ($row['tinggi_badan'] !== null && $row['tinggi_badan'] !== '') {
+            $parts[] = 'TB ' . $row['tinggi_badan'] . ' cm';
+        }
+
+        return $parts === [] ? '-' : implode(', ', $parts);
     }
 
     private function date(string $value): string

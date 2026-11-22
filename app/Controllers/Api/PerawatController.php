@@ -42,6 +42,39 @@ class PerawatController extends BaseApiController
         return $this->response->setJSON(['status' => true, 'data' => $data]);
     }
 
+    public function history()
+    {
+        $data = db_connect()->table('pendaftaran_poli')
+            ->select(
+                'pendaftaran_poli.id_pendaftaran, pendaftaran_poli.tanggal_kunjungan, ' .
+                'pendaftaran_poli.nomor_antrean, pendaftaran_poli.status_antrean, ' .
+                'pendaftaran_poli.waktu_check_in, pendaftaran_poli.catatan_pasien, ' .
+                'pasien.nama_lengkap AS nama_pasien, jadwal_dokter.hari, ' .
+                'jadwal_dokter.jam_mulai, jadwal_dokter.jam_selesai, dokter.nama_dokter, ' .
+                'poliklinik.nama_poli, triase_perawat.keluhan_awal, triase_perawat.tekanan_darah, ' .
+                'triase_perawat.suhu_tubuh, triase_perawat.berat_badan, triase_perawat.tinggi_badan, ' .
+                'triase_perawat.laju_respirasi, triase_perawat.alergi_obat, triase_perawat.catatan_perawat, ' .
+                'triase_perawat.waktu_triase, users.nama_lengkap AS nama_perawat'
+            )
+            ->join('pasien', 'pasien.id_pasien = pendaftaran_poli.id_pasien')
+            ->join('jadwal_dokter', 'jadwal_dokter.id_jadwal = pendaftaran_poli.id_jadwal')
+            ->join('dokter', 'dokter.id_dokter = jadwal_dokter.id_dokter')
+            ->join('poliklinik', 'poliklinik.id_poli = dokter.id_poli', 'left')
+            ->join('triase_perawat', 'triase_perawat.id_pendaftaran = pendaftaran_poli.id_pendaftaran', 'left')
+            ->join('users', 'users.id_user = triase_perawat.id_user', 'left')
+            ->groupStart()
+                ->whereNotIn('pendaftaran_poli.status_antrean', ['Menunggu', 'Siap Diperiksa'])
+                ->orWhere('pendaftaran_poli.tanggal_kunjungan <', date('Y-m-d'))
+            ->groupEnd()
+            ->orderBy('pendaftaran_poli.tanggal_kunjungan', 'DESC')
+            ->orderBy('triase_perawat.waktu_triase', 'DESC')
+            ->orderBy('pendaftaran_poli.nomor_antrean', 'DESC')
+            ->get()
+            ->getResultArray();
+
+        return $this->response->setJSON(['status' => true, 'data' => $data]);
+    }
+
     public function recordTriage(int $appointmentId)
     {
         $input = $this->request->getJSON(true);

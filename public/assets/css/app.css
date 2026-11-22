@@ -74,6 +74,21 @@ a:hover { color: var(--green-900); }
 .register-card .card-heading p { margin-bottom: 18px; }
 .register-form .field { min-height: 46px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px 15px; }
+.exam-form { gap: 8px 10px; }
+.exam-form .field { min-height: 38px; padding: 7px 10px; font-size: 14px; }
+.exam-form .textarea { min-height: 38px; }
+.exam-form .field-label { margin-bottom: 4px; }
+.exam-summary { margin: 0; padding: 8px 12px; border-radius: 8px; color: var(--muted); background: #f7faf8; font-size: 13px; line-height: 1.45; }
+.exam-summary.is-filled { color: var(--ink); border: 1px solid #d7efe4; background: #f3fbf7; }
+.exam-vitals, .exam-prescription { display: grid; gap: 8px 10px; }
+.exam-vitals { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.exam-prescription { grid-template-columns: minmax(0, 1.6fr) 96px minmax(0, 1.2fr); }
+.exam-split { align-items: start; }
+.exam-split .panel { margin-bottom: 0; }
+.exam-side { grid-template-columns: 1fr; }
+.exam-fold { margin-top: 12px; border: 1px solid var(--line); border-radius: 14px; background: white; }
+.exam-fold summary { padding: 14px 16px; font-weight: 700; cursor: pointer; }
+.exam-fold-body { padding: 0 16px 16px; }
 .field-full { grid-column: 1 / -1; }
 .optional { color: #9aa8a3; font-size: 10px; font-weight: 400; }
 .register-form .form-message { margin-top: 14px; }
@@ -224,11 +239,23 @@ body.nav-open .menu-toggle-bars::after { top: 0; transform: rotate(-45deg); }
 .schedule-slot span { display: block; color: #71817e; font-size: 12px; line-height: 1.45; }
 .schedule-slot .button { width: 100%; }
 .schedule-empty { margin: 0; color: #97a49f; font-size: 12px; }
-.schedule-picker { display: grid; gap: 8px; }
+.schedule-picker { display: grid; justify-items: start; gap: 8px; }
 .inline-form .schedule-picker { grid-column: 1 / -1; }
-.schedule-picker-button { width: 100%; }
-.schedule-selection { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.schedule-picker .schedule-picker-button { width: auto; min-height: 36px; padding: 6px 12px; font-size: 13px; }
+.schedule-selection { width: 100%; margin: 0; }
+.schedule-selection-empty { margin: 0; color: var(--muted); font-size: 14px; }
+.schedule-date-field, .schedule-visit-date { display: grid; justify-items: start; gap: 0; width: 100%; }
+.schedule-date-field .field, .schedule-visit-date .field { max-width: 240px; }
+.field-hint { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.schedule-visit-date { padding: 14px 18px 0; }
+.schedule-visit-date .field-hint { margin-top: 6px; }
+.schedule-choice { display: grid; gap: 3px; padding: 12px 14px; border: 1px solid #86d4b0; border-radius: 12px; background: #f3fbf7; }
+.schedule-choice strong { color: var(--green-900); font-size: 18px; line-height: 1.3; }
+.schedule-choice span { color: #314842; font-size: 14px; line-height: 1.45; }
 .schedule-dialog { width: min(760px, calc(100vw - 32px)); max-height: min(86dvh, 860px); margin: auto; padding: 0; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); background: white; box-shadow: var(--shadow); }
+.schedule-edit-dialog { width: min(460px, calc(100vw - 32px)); }
+.schedule-edit-body { display: grid; gap: 10px; padding: 14px 18px 18px; }
+.schedule-edit-times { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .schedule-dialog::backdrop { background: rgba(15, 40, 32, .46); }
 .schedule-dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
 .schedule-dialog-head h3 { margin: 0; font: 700 16px var(--font); }
@@ -264,6 +291,9 @@ body.nav-open .menu-toggle-bars::after { top: 0; transform: rotate(-45deg); }
     .content-area { padding: 18px 14px calc(28px + env(safe-area-inset-bottom)); }
     .page-intro, .panel-heading { flex-direction: column; align-items: stretch; }
     .form-grid, .card-grid, .history-filters, .inline-form, .schedule-board { grid-template-columns: 1fr; }
+    .exam-form, .exam-vitals { grid-template-columns: 1fr 1fr; }
+    .exam-prescription { grid-template-columns: 1fr; }
+    .exam-vitals .field-wrap:last-child { grid-column: 1 / -1; }
     .schedule-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); }
     .schedule-dialog-head { flex-direction: column; }
     .schedule-dialog-head .button, .schedule-dialog .schedule-slot .button { width: 100%; }

@@ -213,6 +213,7 @@ class MedicFlowDemoSeeder extends Seeder
                 ],
                 $now
             );
+            $this->ensureDemoMedicines($now);
 
             if (!$this->db->transStatus()) {
                 throw new RuntimeException('Database menolak sebagian data demo.');
@@ -233,6 +234,7 @@ class MedicFlowDemoSeeder extends Seeder
             CLI::write('Jadwal demo lengkap untuk setiap poli. Minggu tidak ada praktik.');
             CLI::write('Antrean pasien demo tetap pada Senin ' . $scheduleDate . ' pukul 09:00-12:00.');
             CLI::write('Pasien dapat mendaftar ke kedua dokter pada hari yang sama.');
+            CLI::write('Katalog obat demo tersedia pada resep dokter selama stok masih aktif.');
             CLI::write('Alur uji: catat pemeriksaan awal sebagai perawat, panggil dan periksa pasien sebagai dokter, lalu lanjutkan resep.');
         } catch (\Throwable $exception) {
             $this->db->transRollback();
@@ -338,6 +340,56 @@ class MedicFlowDemoSeeder extends Seeder
         ]);
 
         return (int) $this->db->insertID();
+    }
+
+    private function ensureDemoMedicines(string $now): void
+    {
+        $pharmacist = $this->db->table('users')->where('username', 'demo_farmasi')->get()->getRowArray();
+        if (!$pharmacist) {
+            return;
+        }
+
+        $medicines = [
+            ['DEMO-PARA-500', 'Paracetamol 500 mg', 'tablet', 200, '500.00', '2027-12-31'],
+            ['DEMO-AMOX-500', 'Amoksisilin 500 mg', 'kapsul', 120, '1500.00', '2027-06-30'],
+            ['DEMO-IBU-400', 'Ibuprofen 400 mg', 'tablet', 100, '800.00', '2027-09-30'],
+            ['DEMO-CET-10', 'Cetirizine 10 mg', 'tablet', 80, '700.00', '2027-08-31'],
+            ['DEMO-ANTASIDA', 'Antasida DOEN', 'tablet', 150, '400.00', '2027-05-31'],
+            ['DEMO-ORALIT', 'Oralit', 'sachet', 100, '1000.00', '2027-12-31'],
+        ];
+
+        foreach ($medicines as $medicine) {
+            $existing = $this->db->table('obat')->where('kode_kemenkes', $medicine[0])->get()->getRowArray();
+            if ($existing) {
+                continue;
+            }
+
+            $this->db->table('obat')->insert([
+                'kode_kemenkes'       => $medicine[0],
+                'nama_obat'           => $medicine[1],
+                'jenis_obat'          => 'Jadi',
+                'satuan'              => $medicine[2],
+                'cover_bpjs'          => 1,
+                'stok_rs'             => $medicine[3],
+                'stok_minimum'        => 10,
+                'tanggal_kedaluwarsa' => $medicine[5],
+                'harga'               => $medicine[4],
+                'is_active'           => 1,
+                'created_at'          => $now,
+                'updated_at'          => $now,
+            ]);
+
+            $this->db->table('mutasi_stok')->insert([
+                'id_obat'       => (int) $this->db->insertID(),
+                'id_user'       => (int) $pharmacist['id_user'],
+                'jenis_mutasi'  => 'Masuk',
+                'jumlah'        => $medicine[3],
+                'stok_sebelum'  => 0,
+                'stok_sesudah'  => $medicine[3],
+                'keterangan'    => 'Stok awal obat demo',
+                'created_at'    => $now,
+            ]);
+        }
     }
 
     private function ensureUser(string $username, string $role, string $name, string $phone, string $now): int

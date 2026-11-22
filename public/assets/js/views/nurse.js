@@ -2,19 +2,26 @@
 
 function renderNurse() {
     const queue = state.data.queue || [];
+    const history = state.data.queueHistory || [];
     const waiting = queue.filter(function (item) { return item.status_antrean === "Menunggu"; });
     const ready = queue.filter(function (item) { return item.status_antrean === "Siap Diperiksa"; });
     if (state.page === "overview") {
         return '<div class="page-intro"><div><h2>Pemeriksaan awal pasien</h2><p>Catat keluhan dan tanda vital sebelum pasien dipanggil dokter.</p></div></div>' +
             statCards([
                 ["Menunggu dicatat", waiting.length, "Belum ada tanda vital"],
-                ["Siap ke dokter", ready.length, "Pemeriksaan awal sudah tersimpan"]
+                ["Siap ke dokter", ready.length, "Pemeriksaan awal sudah tersimpan"],
+                ["Riwayat", history.length, "Sudah lewat dari antrean aktif"]
             ]) +
-            panel("Antrean pemeriksaan awal", nurseQueueCards(queue.slice(0, 5)), "Setelah disimpan, pasien masuk ke antrean dokter");
+            panel("Antrean pemeriksaan awal", nurseQueueCards(queue.slice(0, 5)), "Setelah disimpan, pasien masuk ke antrean dokter") +
+            panel("Riwayat terbaru", nurseHistoryCards(history.slice(0, 5)), "Catatan yang sudah tidak ada di antrean aktif");
     }
     if (state.page === "triage") {
         return '<div class="page-intro"><div><h2>Antrean pemeriksaan awal</h2><p>Periksa keluhan awal dan catat tanda vital pasien. Data ini dapat dilihat dokter sebelum pemeriksaan lanjutan.</p></div></div>' +
-            panel("Daftar pasien", nurseQueueCards(queue), "Pasien yang telah dicatat akan berstatus Siap Diperiksa");
+            panel("Daftar pasien", nurseQueueCards(queue), "Pasien selesai, batal, atau lewat tanggal ada di menu Riwayat pemeriksaan");
+    }
+    if (state.page === "queueHistory") {
+        return '<div class="page-intro"><div><h2>Riwayat pemeriksaan</h2><p>Kunjungan yang sudah dipanggil, selesai, dibatalkan, atau tanggalnya sudah lewat. Catatan pemeriksaan awal tetap bisa dibaca.</p></div></div>' +
+            panel("Catatan pemeriksaan awal", nurseHistoryCards(history), history.length + " kunjungan");
     }
     return '<div class="empty-state">Halaman tidak ditemukan.</div>';
 }
@@ -49,5 +56,29 @@ function nurseQueueCards(items) {
             ' • Dokter: ' + escapeHtml(item.nama_dokter) + '</p>' +
             (item.waktu_check_in ? '<p><strong>Check-in:</strong> ' + formatDateTime(item.waktu_check_in) + '</p>' : '<p class="text-muted">Belum check-in</p>') +
             (item.estimasi_jam_masuk ? '<p class="text-muted">Perkiraan masuk: ' + formatDateTime(item.estimasi_jam_masuk) + '</p>' : '') + summary + '</article>';
+    }).join("") + '</div>';
+}
+
+function nurseHistoryCards(items) {
+    if (!items.length) return '<div class="empty-state">Belum ada riwayat pemeriksaan awal.</div>';
+    return '<div class="stack">' + items.map(function (item) {
+        const when = item.jam_mulai ? String(item.jam_mulai).slice(0, 5) + "–" + String(item.jam_selesai).slice(0, 5) : "";
+        const recorded = item.keluhan_awal
+            ? '<div class="text-muted"><strong>Keluhan awal:</strong> ' + escapeHtml(item.keluhan_awal) +
+                '<br><strong>Tanda vital:</strong> TD ' + escapeHtml(item.tekanan_darah) +
+                ', suhu ' + escapeHtml(item.suhu_tubuh) + ' °C, respirasi ' + escapeHtml(item.laju_respirasi) +
+                ' x/menit, berat ' + escapeHtml(item.berat_badan) +
+                ' kg, tinggi ' + escapeHtml(item.tinggi_badan) + ' cm' +
+                '<br><strong>Alergi obat:</strong> ' + escapeHtml(item.alergi_obat || "Belum dicatat") +
+                (item.catatan_perawat ? '<br><strong>Catatan perawat:</strong> ' + escapeHtml(item.catatan_perawat) : "") +
+                '<br><strong>Dicatat oleh:</strong> ' + escapeHtml(item.nama_perawat || "Perawat") +
+                (item.waktu_triase ? ' • ' + formatDateTime(item.waktu_triase) : "") + '</div>'
+            : '<p class="text-muted">Pemeriksaan awal belum dicatat.</p>';
+        return '<article class="info-card"><h4>' + escapeHtml(item.nama_pasien) + ' <span style="float:right">' + statusBadge(item.status_antrean) + '</span></h4>' +
+            '<p>Antrean #' + escapeHtml(item.nomor_antrean) + ' • ' + formatDate(item.tanggal_kunjungan) +
+            (when ? ' • ' + escapeHtml(when) : '') + '</p>' +
+            '<p>Dokter: ' + escapeHtml(item.nama_dokter || "—") +
+            (item.nama_poli ? ' • ' + escapeHtml(item.nama_poli) : '') + '</p>' +
+            recorded + '</article>';
     }).join("") + '</div>';
 }

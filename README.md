@@ -67,10 +67,11 @@ Nurses record the patient's initial complaint, blood pressure, temperature,
 weight, height, respiration rate (1–80 breaths per minute), drug allergy, and
 optional nursing note. Saving the assessment changes the appointment status
 from `Menunggu` to `Siap Diperiksa` and stores the drug allergy on the patient
-record. Doctors can then call the patient. The examination form fills the
+record. That patient then appears in the doctor's examination list. The doctor
+can still call the patient from the queue. The examination form fills the
 complaint, vital signs, respiration rate, and drug allergy from that
 assessment, so the doctor continues with diagnosis and treatment. The patient
-is not marked ready for the doctor until the nurse's assessment has been saved.
+is not listed for examination until the nurse's assessment has been saved.
 
 Back up the database, then run `php spark migrate` after updating the
 application. Migrations add nurse triage, patient call/room-entry notifications,
@@ -163,7 +164,8 @@ locally under `public/assets/vendor/` and does not send QR data to a third party
 
 In a development or testing environment, run
 `php spark db:seed MedicFlowDemoSeeder` to add demo accounts, a doctor profile,
-a future Monday schedule, and a patient appointment. The seeder is idempotent
+a future Monday schedule, a patient appointment, and a small active medicine
+catalog for doctor prescriptions. The seeder is idempotent
 and refuses to run in production. Every demo account uses the same password:
 
 | Role | Username | Password |
