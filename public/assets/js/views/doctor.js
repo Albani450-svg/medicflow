@@ -7,8 +7,13 @@ function renderDoctor() {
     const examinations = state.data.examinations || [];
     const medicines = state.data.medicines || [];
     if (state.page === "overview") {
-        return '<div class="page-intro"><div><h2>Selamat bertugas, ' + escapeHtml(state.user.username) + '</h2><p>Kelola antrean dan layanan pasien pada jadwal praktik Anda.</p></div></div>' +
-            statCards([["Pasien aktif hari ini", queue.filter(function (item) { return item.tanggal_kunjungan === new Date().toLocaleDateString("sv-SE"); }).length], ["Menunggu", queue.filter(function (item) { return item.tanggal_kunjungan === new Date().toLocaleDateString("sv-SE") && item.status_antrean === "Menunggu"; }).length], ["Siap diperiksa", queue.filter(function (item) { return item.tanggal_kunjungan === new Date().toLocaleDateString("sv-SE") && item.status_antrean === "Siap Diperiksa"; }).length], ["Pemeriksaan tercatat", examinations.length]]) +
+        return '<div class="page-intro"><div><h2>Ringkasan praktik</h2><p>Angka dan antrean di bawah hanya mencakup pasien pada jadwal Anda.</p></div></div>' +
+            statCards([
+                ["Pasien hari ini", queue.filter(function (item) { return item.tanggal_kunjungan === new Date().toLocaleDateString("sv-SE"); }).length, "Semua status pada jadwal Anda"],
+                ["Menunggu", queue.filter(function (item) { return item.tanggal_kunjungan === new Date().toLocaleDateString("sv-SE") && item.status_antrean === "Menunggu"; }).length, "Belum dicatat perawat"],
+                ["Siap diperiksa", queue.filter(function (item) { return item.tanggal_kunjungan === new Date().toLocaleDateString("sv-SE") && item.status_antrean === "Siap Diperiksa"; }).length, "Sudah bisa dipanggil"],
+                ["Pemeriksaan", examinations.length, "Catatan yang sudah Anda simpan"]
+            ]) +
             panel("Antrean aktif", doctorQueueTable(queue.slice(0, 8)), "Kunjungan aktif, tidak termasuk pemeriksaan selesai atau dibatalkan") +
             panel("Riwayat terbaru", doctorHistoryTable(queueHistory.slice(0, 5)), "Kunjungan selesai, batal, atau tanggal yang telah lewat");
     }

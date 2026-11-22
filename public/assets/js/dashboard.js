@@ -58,6 +58,10 @@ async function loadAdminResource(resource) {
 
 function renderPage() {
     renderNav();
+    document.querySelectorAll("dialog.schedule-dialog").forEach(function (node) {
+        if (typeof node.close === "function" && node.open) node.close();
+        node.remove();
+    });
     const content = document.getElementById("dashboardContent");
     if (!state.role || !roleMenus[state.role]) {
         content.innerHTML = '<div class="empty-state">Akun tidak memiliki peran yang dikenali.</div>';
@@ -239,6 +243,25 @@ function bindReportDownloads() {
     });
 }
 
+function bindSchedulePicker() {
+    const opener = document.getElementById("openSchedulePicker");
+    const dialog = document.getElementById("scheduleMonthDialog");
+    if (!opener || !dialog) return;
+    opener.addEventListener("click", function () {
+        if (dialog.parentElement !== document.body) document.body.appendChild(dialog);
+        if (typeof dialog.showModal === "function") dialog.showModal();
+    });
+    const closeButton = dialog.querySelector("[data-close-schedule]");
+    if (closeButton) {
+        closeButton.addEventListener("click", function () {
+            if (typeof dialog.close === "function") dialog.close();
+        });
+    }
+    dialog.addEventListener("click", function (event) {
+        if (event.target === dialog && typeof dialog.close === "function") dialog.close();
+    });
+}
+
 function bindPageActions() {
     bindReportDownloads();
     if (state.role === "pasien") {
@@ -263,15 +286,28 @@ function bindPageActions() {
             button.addEventListener("click", function () {
                 const select = document.getElementById("scheduleId");
                 const date = document.getElementById("visitDate");
+                const summary = document.getElementById("scheduleSelection");
+                const opener = document.getElementById("openSchedulePicker");
+                const dialog = document.getElementById("scheduleMonthDialog");
                 if (select) select.value = button.dataset.pickSchedule;
-                if (date) date.value = nextPracticeDate(button.dataset.scheduleDay, date.value);
-                const form = document.getElementById("appointmentForm");
-                if (form) form.scrollIntoView({ block: "center" });
-                showToast("Jadwal dipilih. Periksa tanggal kunjungan, lalu daftar antrean.");
+                if (date) date.value = button.dataset.scheduleDate || nextPracticeDate(button.dataset.scheduleDay, date.value);
+                if (summary) summary.textContent = button.dataset.scheduleLabel || "Jadwal dipilih.";
+                if (opener) opener.textContent = "Ubah jadwal dokter";
+                if (dialog) {
+                    dialog.querySelectorAll(".schedule-slot").forEach(function (slot) { slot.classList.remove("is-selected"); });
+                    const slot = button.closest(".schedule-slot");
+                    if (slot) slot.classList.add("is-selected");
+                    if (typeof dialog.close === "function" && dialog.open) dialog.close();
+                }
+                showToast("Jadwal dipilih. Periksa pilihan Anda, lalu daftar antrean.");
             });
         });
+        bindSchedulePicker();
         handleForm("appointmentForm", async function (form) {
             const data = formObject(form);
+            if (!data.id_jadwal || !data.tanggal_kunjungan) {
+                throw new Error("Pilih jadwal dokter terlebih dahulu.");
+            }
             data.id_jadwal = Number(data.id_jadwal);
             await request("pasien/pendaftaran", { method: "POST", body: data });
             await refreshPage("Pendaftaran antrean berhasil dibuat.");

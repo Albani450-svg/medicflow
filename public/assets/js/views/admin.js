@@ -8,10 +8,20 @@ function renderAdmin() {
                 '</td><td>' + escapeHtml(item.aktivitas) + '</td><td>' + escapeHtml(item.tabel_referensi || "—") +
                 (item.id_referensi ? " #" + escapeHtml(item.id_referensi) : "") + '</td><td>' + escapeHtml(item.keterangan || "—") + '</td></tr>';
         });
-        return '<div class="page-intro"><div><h2>Kontrol operasional</h2><p>Ringkasan data yang dapat dikelola administrator.</p></div></div>' +
-            statCards([["Akun", counts.users], ["Pasien", counts.pasien], ["Dokter", counts.dokter], ["Obat", counts.obat]]) +
-            statCards([["Pendaftaran", counts.pendaftaran], ["Pemeriksaan", counts.pemeriksaan], ["Resep", counts.resep], ["Poliklinik", counts.poliklinik]]) +
-            panel("Akses administrator", '<p class="text-muted">Pilih menu Kelola data untuk menambah, memperbarui, atau menghapus data operasional. Gunakan perubahan dengan hati-hati karena dapat berdampak pada antrean dan catatan pasien.</p>') +
+        return '<div class="page-intro"><div><h2>Ringkasan klinik</h2><p>Angka di bawah menghitung data yang tersimpan saat ini.</p></div></div>' +
+            statCards([
+                ["Akun", counts.users, "Pasien dan staf"],
+                ["Pasien", counts.pasien, "Profil yang terdaftar"],
+                ["Dokter", counts.dokter, "Yang bisa menerima jadwal"],
+                ["Obat", counts.obat, "Item di katalog farmasi"]
+            ]) +
+            statCards([
+                ["Pendaftaran", counts.pendaftaran, "Semua antrean"],
+                ["Pemeriksaan", counts.pemeriksaan, "Catatan dokter"],
+                ["Resep", counts.resep, "Termasuk yang selesai"],
+                ["Poliklinik", counts.poliklinik, "Unit layanan"]
+            ]) +
+            panel("Yang bisa diubah", '<p class="text-muted">Menu Kelola data menambah, mengubah, atau menghapus data operasional. Perubahan bisa berdampak pada antrean dan catatan pasien.</p>') +
             panel("Log aktivitas terbaru", table(["Waktu", "Aktor", "Aktivitas", "Objek", "Keterangan"], logs, "Belum ada aktivitas tercatat."), "10 aktivitas terbaru");
     }
     if (state.page === "staff") {
@@ -64,7 +74,7 @@ function renderAdmin() {
         const form = '<div class="stack"><div><label class="field-label" for="resourceSelect">Data yang dikelola</label><select class="field" id="resourceSelect">' + selectOptions + '</select></div>' +
             '<p class="text-muted">Masukkan objek JSON sesuai field API. Untuk mengubah data, pilih baris lalu sesuaikan JSON dan ID.</p>' +
             '<form id="adminResourceForm" class="stack"><div><label class="field-label" for="resourceId">ID untuk pembaruan (kosongkan untuk data baru)</label><input class="field" id="resourceId" name="id" inputmode="numeric"></div><div><label class="field-label" for="resourceJson">Data JSON</label><textarea class="field json-area" id="resourceJson" name="json" required spellcheck="false">{}</textarea></div><div class="form-actions"><button class="button button-secondary" id="clearResourceForm" type="button">Kosongkan</button><button class="button button-primary" type="submit">Simpan data</button></div></form></div>';
-        return '<div class="page-intro"><div><h2>Kelola data</h2><p>CRUD resource operasional yang diizinkan untuk administrator.</p></div></div>' +
+        return '<div class="page-intro"><div><h2>Kelola data</h2><p>Pilih jenis data, lalu isi formulir. Untuk mengubah baris yang ada, tekan Muat, sesuaikan isinya, lalu simpan.</p></div></div>' +
             '<div class="split-grid">' + panel("Form data", form) + panel("Panduan field", '<p class="text-muted">Field berbeda untuk setiap resource. Gunakan ID relasi yang tersedia di database. Data akun memerlukan username, password, nama_lengkap, dan role saat dibuat. Password hanya dikirim melalui API dan tidak ditampilkan dalam daftar.</p>') + '</div>' +
             panel("Data " + (adminResources.find(function (resource) { return resource[0] === selected; }) || ["", selected])[1], table(headers.concat(["Aksi"]), rows, "Belum ada data pada resource ini."));
     }

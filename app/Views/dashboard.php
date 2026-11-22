@@ -15,7 +15,7 @@
                 <span class="brand-mark">+</span>
                 <span>MedicFlow</span>
             </a>
-            <div class="sidebar-caption">MENU UTAMA</div>
+            <div class="sidebar-caption">Menu</div>
             <nav id="sideNavigation" class="side-navigation" aria-label="Navigasi dashboard"></nav>
             <div class="sidebar-footer">
                 <div class="user-avatar" id="userAvatar">M</div>
@@ -32,9 +32,9 @@
                     <button class="menu-toggle" id="menuToggle" type="button" aria-label="Buka menu" aria-controls="appSidebar" aria-expanded="false">
                         <span class="menu-toggle-bars" aria-hidden="true"></span>
                     </button>
-                    <div>
-                        <p class="eyebrow">MEDICFLOW / <span id="topRole">DASHBOARD</span></p>
+                    <div class="topbar-heading">
                         <h1 id="pageTitle">Dashboard</h1>
+                        <span class="topbar-role" id="topRole">Pengguna</span>
                     </div>
                 </div>
                 <div class="topbar-tools">

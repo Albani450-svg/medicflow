@@ -6,7 +6,10 @@ function renderNurse() {
     const ready = queue.filter(function (item) { return item.status_antrean === "Siap Diperiksa"; });
     if (state.page === "overview") {
         return '<div class="page-intro"><div><h2>Pemeriksaan awal pasien</h2><p>Catat keluhan dan tanda vital sebelum pasien dipanggil dokter.</p></div></div>' +
-            statCards([["Pasien menunggu", waiting.length], ["Siap diperiksa dokter", ready.length]]) +
+            statCards([
+                ["Menunggu dicatat", waiting.length, "Belum ada tanda vital"],
+                ["Siap ke dokter", ready.length, "Pemeriksaan awal sudah tersimpan"]
+            ]) +
             panel("Antrean pemeriksaan awal", nurseQueueCards(queue.slice(0, 5)), "Setelah disimpan, pasien masuk ke antrean dokter");
     }
     if (state.page === "triage") {

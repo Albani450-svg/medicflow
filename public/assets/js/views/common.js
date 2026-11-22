@@ -40,15 +40,44 @@ function reportDownloadForm(options) {
 
 function statCards(items) {
     return '<div class="stat-grid">' + items.map(function (item) {
-        return '<article class="stat-card"><span>' + escapeHtml(item[0]) + '</span><strong>' + escapeHtml(item[1]) + '</strong></article>';
+        return '<article class="stat-card"><span>' + escapeHtml(item[0]) + '</span><strong>' + escapeHtml(item[1]) + '</strong>' +
+            (item[2] ? '<em>' + escapeHtml(item[2]) + '</em>' : '') + '</article>';
     }).join("") + '</div>';
+}
+
+function factList(items) {
+    return '<dl class="fact-grid">' + items.map(function (item) {
+        return '<div><dt>' + escapeHtml(item[0]) + '</dt><dd>' + escapeHtml(item[1] || "Belum dicatat") + '</dd></div>';
+    }).join("") + '</dl>';
+}
+
+function navIcon(page) {
+    const paths = {
+        overview: '<path d="M4 10.5 12 4l8 6.5"/><path d="M6 10v10h12V10"/>',
+        appointments: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3.5v4M16 3.5v4M4 10h16"/>',
+        examinations: '<path d="M8 4h8v3a4 4 0 0 1-8 0z"/><path d="M8 5H6.5A2.5 2.5 0 0 0 4 7.5v10A2.5 2.5 0 0 0 6.5 20h11a2.5 2.5 0 0 0 2.5-2.5v-10A2.5 2.5 0 0 0 17.5 5H16"/>',
+        prescriptions: '<rect x="7" y="3" width="10" height="18" rx="5"/><path d="M7 12h10"/>',
+        notifications: '<path d="M6 16h12l-1.2-2.1A6 6 0 0 1 16 11V9a4 4 0 0 0-8 0v2a6 6 0 0 1-.8 2.9z"/><path d="M10 18a2 2 0 0 0 4 0"/>',
+        profile: '<circle cx="12" cy="8" r="3"/><path d="M5.5 19a6.5 6.5 0 0 1 13 0"/>',
+        queue: '<circle cx="9" cy="9" r="2.4"/><circle cx="16" cy="10" r="2"/><path d="M4.5 18.5a4.5 4.5 0 0 1 9 0M13.2 18.5a3.8 3.8 0 0 1 6.3-2.6"/>',
+        queueHistory: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4.5L15 15"/>',
+        schedules: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3.5v4M16 3.5v4M4 10h16"/>',
+        triage: '<path d="M3 12h4.5l2-6 4 12 2-6H21"/>',
+        medicines: '<rect x="7" y="3" width="10" height="18" rx="5"/><path d="M7 12h10"/>',
+        stock: '<path d="M4 8 12 4l8 4-8 4z"/><path d="M4 12l8 4 8-4M4 16l8 4 8-4"/>',
+        pickup: '<circle cx="12" cy="12" r="8"/><path d="m8.5 12.2 2.4 2.4 4.6-5"/>',
+        staff: '<circle cx="9" cy="9" r="2.4"/><circle cx="16" cy="10" r="2"/><path d="M4.5 18.5a4.5 4.5 0 0 1 9 0M13.2 18.5a3.8 3.8 0 0 1 6.3-2.6"/>',
+        resources: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
+        reports: '<path d="M7 3.5h7l5 5V20a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1z"/><path d="M14 3.5V9h5M8 13h8M8 17h5"/>'
+    };
+    return '<svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (paths[page] || paths.overview) + '</svg>';
 }
 
 function renderNav() {
     const nav = document.getElementById("sideNavigation");
     nav.innerHTML = roleMenus[state.role].map(function (item) {
         return '<button class="nav-item' + (state.page === item[0] ? " active" : "") + '" type="button" data-page="' + item[0] + '">' +
-            '<span class="nav-icon">' + item[1] + '</span><span>' + escapeHtml(item[2]) + '</span></button>';
+            '<span class="nav-icon">' + navIcon(item[0]) + '</span><span>' + escapeHtml(item[2]) + '</span></button>';
     }).join("");
     nav.querySelectorAll("[data-page]").forEach(function (button) {
         button.addEventListener("click", function () {
@@ -59,8 +88,9 @@ function renderNav() {
             renderPage();
         });
     });
-    document.getElementById("pageTitle").textContent = pageTitles[state.page] || "Dashboard";
-    document.getElementById("topRole").textContent = (roleLabels[state.role] || "DASHBOARD").toUpperCase();
+    const current = roleMenus[state.role].find(function (item) { return item[0] === state.page; });
+    document.getElementById("pageTitle").textContent = current ? current[2] : (pageTitles[state.page] || "Dashboard");
+    document.getElementById("topRole").textContent = roleLabels[state.role] || "Pengguna";
 }
 
 function profileField(label, name, value, type, required) {

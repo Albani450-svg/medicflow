@@ -10,12 +10,17 @@ function renderPharmacy() {
         const days = (new Date(item.tanggal_kedaluwarsa + "T00:00:00") - new Date(new Date().toDateString())) / 86400000;
         return days <= 30;
     });
-    const inventoryWarnings = '<div class="info-card"><strong>Peringatan stok & kedaluwarsa</strong><p>' +
-        lowStock.length + ' obat mencapai atau di bawah stok minimum; ' + expiring.length +
-        ' obat kedaluwarsa dalam 30 hari atau sudah kedaluwarsa. Periksa katalog sebelum menyiapkan resep.</p></div>';
+    const inventoryWarnings = '<div class="info-card' + (lowStock.length || expiring.length ? " is-warning" : "") + '"><strong>Stok dan kedaluwarsa</strong><p>' +
+        lowStock.length + ' obat sudah mencapai batas minimum. ' + expiring.length +
+        ' obat kedaluwarsa dalam 30 hari atau sudah lewat. Periksa katalog sebelum meracik.</p></div>';
     if (state.page === "overview") {
         return '<div class="page-intro"><div><h2>Operasional farmasi</h2><p>Kelola obat, proses resep, dan catat penyerahan obat kepada pasien.</p></div></div>' +
-            statCards([["Resep masuk", recipes.filter(function (item) { return item.status_resep === "Antrean Farmasi"; }).length], ["Sedang diracik", recipes.filter(function (item) { return item.status_resep === "Sedang Diracik"; }).length], ["Obat terdaftar", medicines.length], ["Stok menipis", lowStock.length]]) +
+            statCards([
+                ["Resep masuk", recipes.filter(function (item) { return item.status_resep === "Antrean Farmasi"; }).length, "Belum mulai diracik"],
+                ["Sedang diracik", recipes.filter(function (item) { return item.status_resep === "Sedang Diracik"; }).length, "Obat sedang disiapkan"],
+                ["Obat di katalog", medicines.length, "Termasuk yang tidak aktif"],
+                ["Stok menipis", lowStock.length, "Mencapai atau di bawah minimum"]
+            ]) +
             inventoryWarnings +
             panel("Resep terbaru", pharmacyRecipeTable(recipes.slice(0, 8)), "Resep dengan pilihan penebusan di apotek rumah sakit");
     }

@@ -14,27 +14,33 @@ function renderPatient() {
         const activeStatuses = ["Menunggu", "Siap Diperiksa", "Dipanggil", "Masuk Ruangan"];
         const upcoming = appointments.filter(function (item) { return activeStatuses.includes(item.status_antrean); });
         return '<div class="page-intro"><div><h2>Halo, ' + escapeHtml(profile.nama_lengkap || state.user.username) + '</h2><p>Ringkasan kunjungan dan informasi kesehatan Anda.</p></div></div>' +
-            statCards([["Pendaftaran aktif", upcoming.length], ["Pemeriksaan tercatat", exams.length], ["Resep", recipes.length], ["Notifikasi", notifications.length]]) +
-            panel("Informasi kesehatan", '<p><strong>Alergi:</strong> ' + escapeHtml(clinicalHistory.alergi || "Belum dicatat") + '</p><p><strong>Alergi obat:</strong> ' + escapeHtml(clinicalHistory.alergi_obat || "Belum dicatat") + '</p><p><strong>Obat aktif:</strong> ' + escapeHtml(clinicalHistory.obat_aktif || "Belum dicatat") + '</p><p class="text-muted">Alergi obat dicatat saat pemeriksaan. Alergi umum dan obat aktif dapat diperbarui dokter.</p>', "Catatan klinis Anda") +
+            statCards([
+                ["Pendaftaran aktif", upcoming.length, "Kunjungan yang belum selesai"],
+                ["Pemeriksaan", exams.length, "Catatan yang sudah dibuat dokter"],
+                ["Resep", recipes.length, "Resep yang pernah diterbitkan"],
+                ["Notifikasi", notifications.length, "Pemberitahuan tersimpan"]
+            ]) +
+            panel("Informasi kesehatan", factList([
+                ["Alergi", clinicalHistory.alergi],
+                ["Alergi obat", clinicalHistory.alergi_obat],
+                ["Obat yang sedang dipakai", clinicalHistory.obat_aktif]
+            ]) + '<p class="text-muted">Alergi obat dicatat saat pemeriksaan. Alergi lain dan obat yang sedang dipakai diubah oleh dokter.</p>', "Ringkas, tanpa perlu membuka riwayat") +
             panel("Notifikasi perangkat", deviceNotificationSettings(), "Tampilkan pemberitahuan di perangkat ini") +
-            panel("Praktik hari ini", todayScheduleList(schedules), "Jadwal lengkap ada di menu Antrean & jadwal") +
+            panel("Praktik hari ini", todayScheduleList(schedules), "Jadwal satu bulan ada pada tombol di menu Antrean & jadwal") +
             panel("Pendaftaran terbaru", appointmentTable(appointments.slice(0, 5), schedules), "Status antrean kunjungan Anda") +
             panel("Notifikasi terbaru", notificationList(notifications.slice(0, 4)), "Informasi dari layanan MedicFlow");
     }
     if (state.page === "appointments") {
-        const scheduleOptions = schedules.map(function (item) {
-            const doctor = item.nama_dokter || "Dokter";
-            const poli = item.nama_poli ? " • " + item.nama_poli : "";
-            const label = doctor + poli + " • " + item.hari + " " + String(item.jam_mulai).slice(0, 5) + "–" + String(item.jam_selesai).slice(0, 5);
-            return '<option value="' + escapeHtml(item.id_jadwal) + '">' + escapeHtml(label) + '</option>';
-        }).join("");
-        return '<div class="page-intro"><div><h2>Jadwalkan kunjungan</h2><p>Pilih jadwal praktik aktif dan tanggal yang sesuai dengan hari praktik. Anda dapat mendaftar ke dua dokter atau lebih pada hari yang sama.</p></div></div>' +
-            panel("Jadwal dokter", doctorScheduleBoard(schedules), "Seluruh jadwal praktik yang sedang aktif") +
+        return '<div class="page-intro"><div><h2>Jadwalkan kunjungan</h2><p>Tekan tombol jadwal, pilih sesi dalam satu bulan ke depan, lalu daftar. Satu hari boleh berisi lebih dari satu dokter.</p></div></div>' +
             panel("Daftar antrean baru", '<form id="appointmentForm" class="inline-form">' +
-                '<div><label class="field-label" for="scheduleId">Dokter & jadwal praktik</label><select class="field" id="scheduleId" name="id_jadwal" required><option value="">Pilih jadwal</option>' + scheduleOptions + '</select></div>' +
-                '<div><label class="field-label" for="visitDate">Tanggal kunjungan</label><input class="field" id="visitDate" name="tanggal_kunjungan" type="date" min="' + new Date().toISOString().slice(0, 10) + '" required></div>' +
+                '<div class="schedule-picker"><span class="field-label" id="schedulePickerLabel">Dokter dan tanggal kunjungan</span>' +
+                '<button class="button button-secondary schedule-picker-button" id="openSchedulePicker" type="button" aria-haspopup="dialog" aria-controls="scheduleMonthDialog">Pilih jadwal dokter</button>' +
+                '<p class="schedule-selection" id="scheduleSelection">Belum ada jadwal yang dipilih.</p>' +
+                '<input type="hidden" id="scheduleId" name="id_jadwal">' +
+                '<input type="hidden" id="visitDate" name="tanggal_kunjungan"></div>' +
                 '<div><label class="field-label" for="visitNote">Catatan (opsional)</label><input class="field" id="visitNote" name="catatan_pasien" maxlength="500" placeholder="Keluhan singkat"></div>' +
-                '<button class="button button-primary" type="submit">Daftar antrean</button></form>') +
+                '<button class="button button-primary" type="submit">Daftar antrean</button></form>' +
+                monthScheduleDialog(schedules), "Pilih satu sesi praktik dari jadwal satu bulan") +
             panel("Riwayat pendaftaran", appointmentHistoryPanel(appointments, schedules), "Antrean yang pernah Anda daftarkan");
     }
     if (state.page === "examinations") {
@@ -83,6 +89,20 @@ function localDateValue(date) {
     return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
 }
 
+const scheduleMonthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+
+function formatScheduleDate(date) {
+    return date.getDate() + " " + scheduleMonthNames[date.getMonth()] + " " + date.getFullYear();
+}
+
+function addMonthsClamped(date, months) {
+    const target = new Date(date.getFullYear(), date.getMonth() + months, 1);
+    const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+    target.setDate(Math.min(date.getDate(), lastDay));
+    target.setHours(0, 0, 0, 0);
+    return target;
+}
+
 function nextPracticeDate(dayName, currentValue) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -114,30 +134,44 @@ function sortedSchedules(schedules) {
     });
 }
 
-function scheduleSlotCard(item, pickable) {
+function scheduleSlotCard(item, pickable, dateValue) {
     const detail = (item.nama_poli || "Poliklinik") + (item.spesialisasi ? " • " + item.spesialisasi : "");
+    const when = dateValue
+        ? localWeekdayName(new Date(dateValue + "T00:00:00")) + ", " + formatScheduleDate(new Date(dateValue + "T00:00:00"))
+        : item.hari;
+    const label = [item.nama_dokter || "Dokter", detail, when, scheduleTimeLabel(item), "Kuota " + item.kuota_maksimal].join(" • ");
     const action = pickable
-        ? '<button class="button button-secondary button-small" type="button" data-pick-schedule="' + escapeHtml(item.id_jadwal) + '" data-schedule-day="' + escapeHtml(item.hari) + '">Pilih jadwal</button>'
+        ? '<button class="button button-secondary button-small" type="button" data-pick-schedule="' + escapeHtml(item.id_jadwal) + '" data-schedule-day="' + escapeHtml(item.hari) + '"' + (dateValue ? ' data-schedule-date="' + escapeHtml(dateValue) + '"' : "") + ' data-schedule-label="' + escapeHtml(label) + '">Pilih</button>'
         : "";
     return '<article class="schedule-slot"><div><strong>' + escapeHtml(item.nama_dokter || "Dokter") + '</strong><span>' + escapeHtml(detail) + '</span><span>' + escapeHtml(scheduleTimeLabel(item)) + " • Kuota " + escapeHtml(item.kuota_maksimal) + '</span></div>' + action + '</article>';
 }
 
-function doctorScheduleBoard(schedules) {
-    const grouped = {};
-    practiceDays.forEach(function (day) { grouped[day] = []; });
-    sortedSchedules(schedules).forEach(function (item) {
-        if (!grouped[item.hari]) grouped[item.hari] = [];
-        grouped[item.hari].push(item);
-    });
-    const todayName = localWeekdayName(new Date());
-    if (!schedules.length) return '<div class="empty-state">Belum ada jadwal dokter yang aktif.</div>';
-    return '<div class="schedule-board">' + practiceDays.map(function (day) {
-        const slots = grouped[day];
+function monthScheduleDialog(schedules) {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = addMonthsClamped(start, 1);
+    const todayValue = localDateValue(start);
+    const days = [];
+    let sessions = 0;
+    const cursor = new Date(start);
+    while (cursor < end) {
+        const dayName = localWeekdayName(cursor);
+        const dateValue = localDateValue(cursor);
+        const slots = sortedSchedules(schedules).filter(function (item) { return item.hari === dayName; });
+        sessions += slots.length;
         const body = slots.length
-            ? slots.map(function (item) { return scheduleSlotCard(item, true); }).join("")
+            ? slots.map(function (item) { return scheduleSlotCard(item, true, dateValue); }).join("")
             : '<p class="schedule-empty">Tidak ada praktik</p>';
-        return '<section class="schedule-day' + (day === todayName ? " is-today" : "") + '"><h4>' + escapeHtml(day) + (day === todayName ? '<span>Hari ini</span>' : "") + '</h4>' + body + '</section>';
-    }).join("") + '</div>';
+        days.push('<section class="schedule-month-day' + (dateValue === todayValue ? " is-today" : "") + '"><h4>' + escapeHtml(dayName + ", " + formatScheduleDate(cursor)) + (dateValue === todayValue ? "<span>Hari ini</span>" : "") + "</h4>" + body + "</section>");
+        cursor.setDate(cursor.getDate() + 1);
+    }
+    const lastShown = new Date(end);
+    lastShown.setDate(lastShown.getDate() - 1);
+    const range = formatScheduleDate(start) + " – " + formatScheduleDate(lastShown);
+    const body = schedules.length
+        ? days.join("")
+        : '<div class="empty-state">Belum ada jadwal dokter yang aktif.</div>';
+    return '<dialog class="schedule-dialog" id="scheduleMonthDialog" aria-labelledby="scheduleMonthTitle"><div class="schedule-dialog-head"><div><h3 id="scheduleMonthTitle">Jadwal dokter</h3><p>' + escapeHtml(range + " • " + sessions + " sesi praktik") + '</p></div><button class="button button-secondary button-small" type="button" data-close-schedule>Tutup</button></div><div class="schedule-month">' + body + "</div></dialog>";
 }
 
 function todayScheduleList(schedules) {

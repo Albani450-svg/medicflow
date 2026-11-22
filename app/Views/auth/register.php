@@ -14,15 +14,19 @@
                 <span class="brand-mark">+</span>
                 <span>MedicFlow</span>
             </a>
-            <p class="eyebrow">PENDAFTARAN PASIEN</p>
-            <h1>Buat akun untuk mengatur kunjungan Anda.</h1>
-            <p class="intro-copy">Daftar antrean, pantau status pemeriksaan, dan lihat informasi resep melalui aplikasi.</p>
+            <p class="eyebrow">KHUSUS PASIEN</p>
+            <h1>Buat akun, lalu atur kunjungan sendiri.</h1>
+            <ul class="intro-points">
+                <li>Pilih dokter dan tanggal praktik</li>
+                <li>Pantau status antrean sampai pemeriksaan selesai</li>
+                <li>Lihat resep dan cara pengambilan obat</li>
+            </ul>
         </section>
         <section class="auth-card register-card">
             <div class="card-heading">
-                <span class="eyebrow">AKUN BARU</span>
+                <span class="eyebrow">DATA DIRI</span>
                 <h2>Daftar sebagai pasien</h2>
-                <p>Pastikan data sesuai identitas Anda.</p>
+                <p>Isi sesuai identitas. Akun staf dibuat oleh administrator.</p>
             </div>
             <form id="registerForm" class="register-form">
                 <div class="form-grid">
